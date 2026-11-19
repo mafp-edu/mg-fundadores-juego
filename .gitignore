@@ -1,0 +1,7 @@
+# Archivos de desarrollo que no van en la versión pública
+test_harness.js
+test_arte.html
+herramientas/
+.claude/
+capturas/
+*.log

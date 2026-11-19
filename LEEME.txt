@@ -1,0 +1,39 @@
+MG y los Fundadores · El juego
+================================
+
+Un juego de rol 2D (estilo Game Boy Advance) basado en la serie y los libros
+«Pequeños Patriotas» de Miguel Ángel Fernández, con ilustraciones de Rafael Fernández.
+
+CÓMO JUGAR
+- Abrir el archivo index.html con Chrome o Edge (doble clic). No necesita internet.
+- La partida se guarda sola al cambiar de lugar (y en el libro → Opciones → Guardar).
+
+CONTROLES (teclado)
+- Flechas o WASD: caminar
+- Z, Espacio o Enter: hablar / aceptar (botón A)
+- X o Esc: volver (botón B). Mantener Shift (o B) para correr
+- M o Tab: abrir el Libro de los Fundadores (medallas, bitácora con pista, mochila, opciones)
+- H: pedir una pista a Nemo
+- También funciona con mando (joystick) y, en tablet o celular, con botones en pantalla.
+
+LA HISTORIA (viaje del héroe)
+Casa (hoy) → accidente de Max y Nemo desaparece → regalo del tío (el libro y su bitácora)
+→ 1810 Cabildo: don Mateo y Manuel de Salas → el jinete misterioso
+→ 1814 La Alameda: Javiera y José Miguel Carrera (la noticia de Rancagua)
+→ 1816 Reconquista: Águeda Monasterio, Luisa Recabarren, Paula Jaraquemada y Manuel Rodríguez
+→ 1817 Chillán: María Cornelia Olivares → 1818 Maipú: Ramón Freire (y el abrazo de Maipú)
+→ 1823 Santiago: Bernardo O'Higgins (el piano y su renuncia) → 1832 Valparaíso: Diego Portales
+→ con las 12 medallas se abre el regreso: duelo final contra «El Olvido» → casa, carta del tío y poema de MG.
+
+PISTAS (nunca te quedas atascada)
+- Una flecha dorada siempre apunta al próximo objetivo (también fuera de la pantalla).
+- Si pasa un rato sin avanzar, Nemo da una pista y deja un rastro de estrellas hasta el lugar.
+- En los duelos, tras dos errores Nemo descarta una respuesta; en las melodías, el botón correcto brilla;
+  en la línea de tiempo se marcan en rojo los papeles mal puestos. Nunca se pierde: ¡los valientes se levantan!
+
+Minijuegos: duelos de ideas (preguntas de historia), costura de la bandera, melodías en guitarra
+y piano, silbido del chincol, sigilo entre soldados, fardos de paja, túnel oscuro y ordenar la
+línea de tiempo.
+
+Arte de personajes, baldosas y música: hechos en código (sin IA de imágenes). Retratos y medallas:
+recortes de los dibujos originales de Rafael Fernández.
