@@ -27,11 +27,10 @@ MAPS.casa_living = () => {
   const g = room(16, 10, { wall: '#' }); g[2][2] = 'D'; g[1][2] = 'D'; R(g, 11, 3, 4, 6, 't'); SET(g, [[14, 7], [14, 8]], 'H');
   return {
     name: 'Living', era: 'hoy', music: 'casa', rows: rowsOf(g), legend: { D: ['doorin', 0] }, tint: G.flags.flashback ? 'sepia' : null,
-    props: [['bookshelf2', 4, 3], ['plant', 1, 3], ['fireplace', 7, 3], ['table', 6, 6], ['chair', 5, 6], ['chair', 9, 6], ['bench', 2, 7], ['fridge', 13, 3], ['stove', 12, 3], ['counter', 11, 6], ['window', 10, 1, { deco: 1 }], ['painting', 6, 1, { deco: 1 }], ['clock', 9, 1, { deco: 1 }]],
+    props: [['bookshelf2', 4, 3], ['plant', 1, 3], ['fireplace', 7, 3], ['table', 6, 6], ['chair', 5, 6], ['chair', 9, 6], ['bench', 2, 7], ['fridge', 13, 3], ['stove', 12, 3], ['counter', 11, 6], ['window', 9, 1, { deco: 1 }], ['painting', 6, 1, { deco: 1 }], ['clock', 11, 1, { deco: 1 }]],
     npcs: [
       { id: 'papa', sprite: 'papa', x: 4, y: 6, dir: 'right', cond: '!flashback&!accidente|fin', talk: () => PAPA_TALK() },
-      { id: 'max', sprite: 'max', x: 8, y: 8, wander: 2, cond: '!flashback&!accidente|fin', talk: () => MAX_TALK() },
-      { id: 'tio_fin', sprite: 'tio', x: 10, y: 5, dir: 'down', cond: 'fin', talk: () => TIO_FIN() }
+      { id: 'max', sprite: 'max', x: 8, y: 8, wander: 2, cond: '!flashback&!accidente|fin', talk: () => MAX_TALK() }
     ],
     warps: [{ x: 2, y: 2, to: 'casa_pieza', tx: 5, ty: 7, dir: 'up' }, { x: 14, y: 8, to: 'casa_lab', tx: 11, ty: 8, dir: 'left' }, { x: 14, y: 7, to: 'casa_lab', tx: 11, ty: 8, dir: 'left' }],
     objs: [{ x: 13, y: 3, run: () => COCINA() }, { x: 12, y: 3, run: () => COCINA() }, { x: 11, y: 6, w: 2, run: () => COCINA() }]
@@ -57,7 +56,7 @@ function plaza(era) {
   R(g, 27, 21, 9, 7, '.'); SET(g, [[29, 22], [33, 23], [30, 26], [35, 27]], '*');
   const roofs = era === '1816' ? ['#9a5a4a', '#7a4234', '#b8705a', '#5a2e22'] : undefined;
   const P = [
-    ['cabildo', 10, 2, { w: 16, h: 7, door: [7, 8], to: era === '1823' ? 'cabildo1823' : 'cabildo', tx: 11, ty: 14, toCond: era === '1810' ? 'cabildo_abierto' : era === '1823' ? 'visita_cabildo23' : 'nunca', locked: era === '1816' ? 'Hay soldados en la puerta del Cabildo. Mejor no acercarme.' : era === '1823' ? 'Hoy el Cabildo está repleto. Primero quiero encontrar a Nemo.' : 'Hoy solo pueden entrar los vecinos invitados.' }],
+    ['cabildo', 10, 2, { w: 16, h: 7, door: [7, 8], to: era === '1823' ? 'cabildo1823' : 'cabildo', tx: 11, ty: 14, toCond: era === '1810' ? 'cabildo_abierto' : era === '1823' ? 'visita_cabildo23' : 'nunca', locked: era === '1816' ? 'Hay soldados en la puerta del Real Consulado. Mejor no acercarme.' : era === '1823' ? 'Hoy el Consulado está repleto. Primero quiero encontrar a Nemo.' : 'Hoy solo pueden entrar los vecinos que recibieron una esquela de invitación.' }],
     ['church', 1, 10, { w: 7, h: 8, door: [3], locked: 'La Catedral está cerrada. ¡Todavía la están terminando de construir!' }],
     ['house', 28, 9, { w: 7, h: 5, door: [3], roof: roofs, to: era === '1816' ? 'casa_luisa' : era === '1823' ? 'casa_ohiggins' : null, tx: era === '1823' ? 7 : 5, ty: era === '1823' ? 8 : 7, locked: era === '1810' ? 'Toc, toc… Nadie abre. Deben estar todos en la plaza.' : null }],
     ['house', 28, 15, { w: 7, h: 5, door: [3], wall: '#f8e8c8', roof: roofs, locked: 'La puerta está cerrada con llave.' }],
@@ -72,7 +71,7 @@ function plaza(era) {
   ];
   if (era === '1810') P.push(['flag_es', 9, 8]);
   if (era === '1816') P.push(['flag_es', 9, 8], ['flag_es', 26, 8]);
-  if (era === '1823') P.push(['flag_cl', 9, 8], ['flag_cl', 26, 8], ['flag_cl', 17, 21]);
+  if (era === '1823') P.push(['flag_cl', 9, 8], ['flag_cl', 26, 8], ['flag_cl', 16, 14]);
   return { g, P };
 }
 MAPS.stgo1810 = () => {
@@ -82,20 +81,18 @@ MAPS.stgo1810 = () => {
     name: 'Plaza de Armas, 1810', era: '1810', music: () => G.flags.jinete_pendiente ? 'triste' : 'colonia', rows: rowsOf(g), props: P, tint,
     npcs: [
       { id: 'mateo', sprite: 'mateo', speaker: 'mateo', x: 15, y: 9, dir: 'down', cond: '!cabildo_abierto', talk: () => MATEO_PLAZA() },
-      { id: 'guardia', sprite: 'guardia', speaker: 'guardia', x: 19, y: 9, dir: 'down', cond: '!cabildo_abierto', talk: 'Buenos días, niña. Hoy hay Cabildo abierto: solo entran los vecinos que recibieron invitación.' },
+      { id: 'guardia', sprite: 'guardia', speaker: 'guardia', x: 19, y: 9, dir: 'down', cond: '!cabildo_abierto', talk: 'Buenos días, niña. Hoy hay Cabildo abierto en la sala del Real Consulado: solo entran los vecinos que recibieron una esquela de invitación.' },
       { id: 'vendedora', sprite: 'vendedora', speaker: 'vendedora', x: 7, y: 19, dir: 'down', talk: () => VENDEDORA_1810() },
       { id: 'vecino_a', sprite: 'vecino', speaker: 'vecino', x: 18, y: 14, dir: 'down', talk: () => INVITADO(1) },
       { id: 'vecino_b', sprite: 'vecina2', speaker: 'vecina2', x: 8, y: 16, dir: 'right', talk: () => INVITADO(2) },
       { id: 'vecino_c', sprite: 'huaso', speaker: 'huaso', x: 29, y: 7, dir: 'left', talk: () => INVITADO(3) },
       { id: 'caballo', horse: 'horse', x: 30, y: 6, dir: 'left', talk: 'El caballo resopla: «¡Brrr!». En 1810 no hay autos: ¡hay caballos y carretas!' },
       { id: 'nino1', sprite: 'nino', speaker: 'nino', x: 14, y: 21, wander: 2, talk: '¿Sabías que en las noches un sereno recorre las calles cantando la hora? ¡Y si llueve, grita «¡y lloviendo!»!' },
-      { id: 'nina1', sprite: 'nina', speaker: 'nina', x: 22, y: 15, wander: 2, talk: 'Mi mamá dice que hoy los señores importantes van a decidir algo muy grande en el Cabildo.' },
+      { id: 'nina1', sprite: 'nina', speaker: 'nina', x: 22, y: 15, wander: 2, talk: 'Mi mamá dice que hoy los señores importantes van a decidir algo muy grande en el Real Consulado.' },
       { id: 'fraile1', sprite: 'fraile', speaker: 'fraile', x: 25, y: 14, dir: 'left', talk: 'La paz sea contigo, hija. Dicen que el rey de España está prisionero. ¡Tiempos difíciles!' },
       { id: 'vecina1', sprite: 'vecina', speaker: 'vecina', x: 4, y: 20, wander: 1, talk: 'El agua la traen los aguateros en burro, ¡y la guardamos en tinajas!' },
-      { id: 'jinete', horse: 'jinete', x: 26, y: 22, dir: 'left', cond: 'jinete_pendiente', talk: () => JINETE() }
     ],
     objs: [{ x: 17, y: 15, w: 3, h: 2, text: 'La pileta de la plaza. Aquí la gente viene a buscar agua y a conversar.' }],
-    triggers: [{ id: 'jinete', x: 24, y: 21, w: 4, h: 6, cond: 'jinete_pendiente&!jinete_visto', run: () => JINETE() }],
     onEnter: () => STGO1810_ENTER()
   };
 };
@@ -111,7 +108,9 @@ MAPS.stgo1816 = () => {
       { id: 'g4', sprite: 'realista', speaker: 'realista', x: 20, y: 9, dir: 'left', guard: { route: 'l..d..r..d..', range: 5, onSee: ver }, talk: '¡Circule!' },
       { id: 'g5', sprite: 'realista', speaker: 'realista', x: 7, y: 26, dir: 'left', guard: { route: 'l....r....', range: 4, onSee: ver }, talk: '¡Circule!' },
       { id: 'susurro', sprite: 'vecina', speaker: 'vecina', x: 33, y: 21, dir: 'left', talk: () => SUSURRO_1816() },
-      { id: 'viejo16', sprite: 'vecino2', speaker: 'vecino2', x: 29, y: 25, dir: 'up', talk: 'Shhh… Desde Rancagua, los soldados del rey vigilan cada esquina. Caminamos rápido y hablamos bajito.' }
+      { id: 'viejo16', sprite: 'vecino2', speaker: 'vecino2', x: 29, y: 25, dir: 'up', talk: 'Shhh… Desde Rancagua, los soldados del rey vigilan cada esquina. Caminamos rápido y hablamos bajito.' },
+      { id: 'sanbruno', sprite: 'sanbruno', speaker: 'sanbruno', x: 25, y: 27, dir: 'up', cond: 'camino_sur&!duelo_sanbruno', talk: () => SANBRUNO_PORTON() },
+      { id: 'talav_porton', sprite: 'realista', speaker: 'realista', x: 26, y: 27, dir: 'up', cond: 'camino_sur&!duelo_sanbruno', talk: () => SANBRUNO_PORTON() }
     ],
     warps: [{ x: 25, y: 27, to: 'hacienda', tx: 1, ty: 12, dir: 'right', cond: 'camino_sur', lockedText: 'Ese camino sale de la ciudad, hacia el sur. Todavía no sé a dónde ir.' }, { x: 26, y: 27, to: 'hacienda', tx: 1, ty: 12, dir: 'right', cond: 'camino_sur', lockedText: 'Ese camino sale de la ciudad, hacia el sur. Todavía no sé a dónde ir.' }],
     onEnter: () => STGO1816_ENTER()
@@ -126,7 +125,7 @@ MAPS.stgo1823 = () => {
       { id: 'escolar1', sprite: 'nino', speaker: 'nino', x: 19, y: 21, dir: 'down', talk: '¡Voy a la escuela! Ya sé leer: «Chi-le»… ¡Chile!' },
       { id: 'escolar2', sprite: 'nina', speaker: 'nina', x: 13, y: 15, wander: 2, talk: 'Mi profe dice que el Director Supremo quiere escuelas en todo el país.' },
       { id: 'vec23', sprite: 'vecino', speaker: 'vecino', x: 25, y: 16, dir: 'left', talk: '¿Viste la bandera nueva? Blanca, azul y roja, con una estrella solitaria. ¡Me encanta!' },
-      { id: 'vec23b', sprite: 'vecina2', speaker: 'vecina2', x: 12, y: 9, dir: 'down', talk: () => say('vecina2', G.flags.medalla_ohiggins ? 'Don Bernardo dejó el mando… ¡Qué hombre más valiente! No se aferró al poder.' : 'Dicen que hoy habrá un Cabildo muy importante. La gente está nerviosa.') },
+      { id: 'vec23b', sprite: 'vecina2', speaker: 'vecina2', x: 12, y: 9, dir: 'down', talk: () => say('vecina2', G.flags.medalla_ohiggins ? 'Don Bernardo dejó el mando… ¡Qué hombre más valiente! No se aferró al poder.' : 'Dicen que hoy habrá una reunión muy importante en el Consulado. La gente está nerviosa.') },
       { id: 'huaso23', sprite: 'huaso', speaker: 'huaso', x: 29, y: 7, dir: 'left', talk: '¡Buenas, patroncita! Ahora sí que somos chilenos, ¿ah? ¡Viva Chile!' },
       { id: 'caballo23', horse: 'horseCafe', x: 30, y: 6, dir: 'left', talk: 'Un caballo café muy tranquilo.' }
     ],
@@ -140,10 +139,10 @@ function cabildoBase() {
   return g;
 }
 MAPS.cabildo = () => ({
-  name: 'Cabildo de Santiago', era: '1810', music: 'colonia', rows: rowsOf(cabildoBase()),
+  name: 'Real Consulado de Santiago', era: '1810', music: 'colonia', rows: rowsOf(cabildoBase()),
   props: [['mapwall', 2, 1, { deco: 1 }], ['longtable', 9, 5], ['chair', 9, 4], ['chair', 11, 4], ['chair', 13, 4], ['chair', 9, 6, { flip: 1 }], ['chair', 13, 6], ['candela', 7, 3], ['candela', 16, 3],
     ['painting', 9, 1, { deco: 1 }], ['painting', 13, 1, { deco: 1 }], ['bookshelf', 18, 3], ['bookshelf', 19, 3], ['bookshelf', 20, 3], ['bookshelf', 21, 3], ['bookshelf', 22, 3], ['bookshelf', 18, 8], ['bookshelf', 22, 8], ['deskold', 19, 11],
-    ['plant', 1, 13], ['plant', 22, 13], ['candela', 1, 8], ['flag_es', 5, 3, { deco: 1 }]],
+    ['plant', 1, 13], ['plant', 22, 13], ['candela', 1, 8], ['flag_es', 8, 3, { deco: 1, s: 1.8 }], ['flag_es', 15, 3, { deco: 1, s: 1.8 }]],
   npcs: [
     { id: 'mateo', sprite: 'mateo', speaker: 'mateo', x: 4, y: 4, dir: 'down', cond: '!medalla_mateo', talk: () => MATEO_CABILDO() },
     { id: 'dudoso', sprite: 'vecino2', speaker: 'vecino2', x: 14, y: 9, dir: 'left', cond: '!duelo_dudoso', talk: () => DUDOSO() },
@@ -154,12 +153,12 @@ MAPS.cabildo = () => ({
     { id: 'junta3', sprite: 'fraile', speaker: 'fraile', x: 6, y: 10, dir: 'right', talk: 'Hoy es 18 de septiembre de 1810. Recuerda esta fecha, pequeña.' }
   ],
   warps: [{ x: 11, y: 15, to: 'stgo1810', tx: 17, ty: 9, dir: 'down' }, { x: 12, y: 15, to: 'stgo1810', tx: 18, ty: 9, dir: 'down' }],
-  objs: [{ x: 2, y: 1, w: 3, run: () => MAPA_ESPANA() }, { x: 19, y: 11, w: 2, text: 'Un escritorio con tintero y pluma. Aquí se escriben las actas del Cabildo.' }, ...LIBROS_SALAS()],
+  objs: [{ x: 2, y: 1, w: 3, run: () => MAPA_ESPANA() }, { x: 19, y: 11, w: 2, text: 'Un escritorio con tintero y pluma. Aquí se escribirá el acta de la reunión.' }, ...LIBROS_SALAS()],
   onEnter: () => CABILDO_ENTER()
 });
 MAPS.cabildo1823 = () => ({
-  name: 'Cabildo, 1823', era: '1823', music: 'piano', rows: rowsOf(cabildoBase()),
-  props: [['mapwall', 2, 1, { deco: 1 }], ['longtable', 9, 5], ['candela', 7, 3], ['candela', 16, 3], ['painting', 9, 1, { deco: 1 }], ['painting', 13, 1, { deco: 1 }], ['bookshelf', 18, 3], ['bookshelf', 19, 3], ['bookshelf', 20, 3], ['flag_cl', 5, 3, { deco: 1 }], ['plant', 1, 13], ['plant', 22, 13]],
+  name: 'Real Consulado, 1823', era: '1823', music: 'piano', rows: rowsOf(cabildoBase()),
+  props: [['mapwall', 2, 1, { deco: 1 }], ['longtable', 9, 5], ['candela', 7, 3], ['candela', 16, 3], ['painting', 9, 1, { deco: 1 }], ['painting', 13, 1, { deco: 1 }], ['bookshelf', 18, 3], ['bookshelf', 19, 3], ['bookshelf', 20, 3], ['flag_cl', 8, 3, { deco: 1, s: 1.8 }], ['flag_cl', 15, 3, { deco: 1, s: 1.8 }], ['plant', 1, 13], ['plant', 22, 13]],
   npcs: [
     { id: 'ohiggins', sprite: 'ohiggins', speaker: 'ohiggins', x: 11, y: 8, dir: 'down', cond: '!medalla_ohiggins' },
     { id: 'p1', sprite: 'vecino', x: 8, y: 9, dir: 'right' }, { id: 'p2', sprite: 'vecino2', x: 14, y: 9, dir: 'left' }, { id: 'p3', sprite: 'patriota', x: 7, y: 7, dir: 'right' }, { id: 'p4', sprite: 'fraile', x: 16, y: 8, dir: 'left' }, { id: 'p5', sprite: 'vecina', x: 9, y: 11, dir: 'up' }, { id: 'p6', sprite: 'huaso', x: 14, y: 11, dir: 'up' }, { id: 'p7', sprite: 'patriota', x: 17, y: 10, dir: 'left' }
@@ -203,7 +202,7 @@ MAPS.alameda1814 = () => {
       { id: 's3', sprite: 'patriota', speaker: 'patriota', x: 21, y: 8, dir: 'left', cond: 'rancagua&!medalla_jmcarrera', talk: () => SOLDADO(3) },
       { id: 'caballo14', horse: 'horseBlack', x: 15, y: 11, dir: 'right', cond: 'rancagua', talk: 'El caballo de José Miguel está cansado y cubierto de polvo.' }
     ],
-    objs: [{ x: 34, y: 14, sparkle: true, cond: 'buscar_telas&!tela_azul', run: () => TELA_AZUL() }, { x: 23, y: 8, text: 'La bandera de la Patria Vieja: azul, blanca y amarilla.' }],
+    objs: [{ x: 34, y: 14, sparkle: true, show: 'b_tela_azul', cond: 'buscar_telas&!tela_azul', run: () => TELA_AZUL() }, { x: 23, y: 8, text: 'La bandera de la Patria Vieja: azul, blanca y amarilla.' }],
     triggers: [{ id: 'jardin', x: 6, y: 1, w: 18, h: 8, cond: '!nemo_javiera', run: () => JARDIN_ENTRAR() }],
     onEnter: () => ALAMEDA_ENTER()
   };
@@ -326,6 +325,47 @@ MAPS.cueva = () => {
     onEnter: () => CUEVA_ENTER()
   };
 };
+// ------------------------------------------------------------ MENDOZA, ENERO DE 1817 (Ejército de los Andes)
+MAPS.mendoza = () => {
+  const g = G0(30, 20, ':');
+  R(g, 0, 0, 30, 1, 'R'); R(g, 0, 1, 30, 1, ','); R(g, 0, 18, 30, 2, ','); SET(g, [[2, 4], [27, 3], [3, 16], [14, 17]], '*');
+  const P = [['tent', 3, 3], ['tent', 8, 3], ['tent', 13, 3], ['tent', 18, 3], ['tent', 4, 14], ['tent', 9, 14],
+    ['campfire', 6, 6], ['campfire', 16, 6], ['yunque', 22, 5], ['yunque', 25, 5], ['barrel', 27, 5], ['crate', 27, 6], ['cannon', 23, 15], ['cannon', 26, 13],
+    ['mula', 11, 11], ['mula', 15, 11], ['mula', 19, 11], ['haypile', 13, 15], ['cart', 2, 10], ['timemachine', 26, 17], ['tree', 28, 2], ['tree', 1, 6], ['bush', 20, 17]];
+  return {
+    name: 'Campamento de Mendoza, 1817', era: '1817', music: 'hacienda', rows: rowsOf(g), props: P,
+    npcs: [{ id: 'sanmartin', sprite: 'sanmartin', speaker: 'sanmartin', x: 15, y: 8, dir: 'down', talk: () => SANMARTIN() },
+      { id: 'arriero', sprite: 'huaso', speaker: 'arriero', x: 17, y: 10, dir: 'down', talk: () => ARRIERO() },
+      { id: 'herrero', sprite: 'vecino', speaker: 'herrero', x: 23, y: 6, dir: 'down', talk: () => HERRERO() },
+      { id: 'sold1', sprite: 'patriota', speaker: 'patriota', x: 6, y: 9, wander: 2, talk: 'Llegué a Mendoza después de Rancagua. ¡Ahora volvemos a Chile por la cordillera!' },
+      { id: 'sold2', sprite: 'patriota', speaker: 'patriota', x: 22, y: 9, dir: 'left', talk: 'El general San Martín nos entrena todos los días. ¡Marchar, marchar y marchar!' }],
+    objs: [{ x: 11, y: 11, w: 2, run: () => MULA(1) }, { x: 15, y: 11, w: 2, run: () => MULA(2) }, { x: 19, y: 11, w: 2, run: () => MULA(3) }],
+    warps: [{ x: 0, y: 9, to: 'cordillera', tx: 28, ty: 8, dir: 'left', cond: 'andes_cruzando', lockedText: 'Ese camino sube a la cordillera. Primero hay que preparar la recua.' },
+      { x: 0, y: 10, to: 'cordillera', tx: 28, ty: 9, dir: 'left', cond: 'andes_cruzando', lockedText: 'Ese camino sube a la cordillera. Primero hay que preparar la recua.' }],
+    onEnter: () => MENDOZA_ENTER()
+  };
+};
+// ------------------------------------------------------------ LA CORDILLERA (paso nevado) Y LA BAJADA A CHACABUCO
+MAPS.cordillera = () => {
+  const g = G0(30, 16, 'R');
+  R(g, 0, 8, 30, 2, 'n');                                   // la senda
+  [8, 15, 22].forEach(x => { g[7][x] = 'n'; });              // huecos en la ladera
+  R(g, 25, 10, 5, 4, 'n'); R(g, 0, 10, 5, 4, 'n');           // descansos al este y al oeste
+  [[3, 3], [4, 3], [12, 4], [13, 4], [20, 2], [21, 3], [27, 4], [10, 12], [11, 12], [18, 13], [19, 12]].forEach(([x, y]) => { g[y][x] = 'n'; });
+  const P = [['puzzlemark', 8, 7, { deco: 1 }], ['puzzlemark', 15, 7, { deco: 1 }], ['puzzlemark', 22, 7, { deco: 1 }], ['tent', 26, 12], ['campfire', 28, 11]];
+  if (!G.flags.senda_ok) P.push(['nieve', 10, 8, { push: 1, id: 'n1' }], ['nieve', 17, 8, { push: 1, id: 'n2' }], ['nieve', 24, 8, { push: 1, id: 'n3' }], ['nieve', 5, 8, { id: 'tapon1' }], ['nieve', 5, 9, { id: 'tapon2' }]);
+  else P.push(['nieve', 8, 7], ['nieve', 15, 7], ['nieve', 22, 7]);
+  if (G.flags.chacabuco_ok) P.push(['timemachine', 1, 12]);
+  return {
+    name: 'La cordillera de los Andes, 1817', era: '1817', music: 'reconquista', rows: rowsOf(g), props: P, snowpeaks: true,
+    npcs: [{ id: 'arriero', sprite: 'huaso', speaker: 'arriero', x: 27, y: 10, dir: 'left', talk: () => ARRIERO_PASO() },
+      { id: 'sold3', sprite: 'patriota', speaker: 'patriota', x: 25, y: 11, dir: 'left', talk: '¡Brrr! Hace tanto frío que se me congelan hasta las palabras…' },
+      { id: 'sanmartin', sprite: 'sanmartin', speaker: 'sanmartin', x: 4, y: 12, dir: 'up', cond: 'chacabuco_ok', talk: 'Cruzamos la cordillera y ganamos en Chacabuco. Ahora Chile podrá gobernarse a sí mismo.' }],
+    triggers: [{ id: 'chacabuco', x: 0, y: 8, w: 1, h: 2, cond: 'senda_ok&!chacabuco_ok', run: () => CHACABUCO() }],
+    onPush: () => NIEVE_CHECK(),
+    onEnter: () => CORDILLERA_ENTER()
+  };
+};
 // ------------------------------------------------------------ CHILLÁN, 1817
 MAPS.chillan = () => {
   const g = G0(30, 20, ':');
@@ -350,7 +390,7 @@ MAPS.maipu = () => {
   R(g, 0, 0, 34, 1, 'R'); R(g, 2, 9, 30, 1, ':'); R(g, 19, 2, 2, 18, ':'); R(g, 0, 16, 18, 2, ':');
   SET(g, [[3, 3], [28, 4], [8, 18], [30, 19], [12, 14]], '*'); R(g, 24, 13, 8, 6, '"');
   const P = [['tent', 5, 4], ['tent', 9, 4], ['tent', 13, 4], ['tent', 23, 4], ['tent', 27, 4], ['tent', 6, 12], ['tent', 12, 12],
-    ['campfire', 8, 6], ['campfire', 25, 6], ['campfire', 10, 14], ['cannon', 15, 2], ['cannon', 29, 2], ['flag_cl', 21, 2], ['flag_cl', 17, 8], ['timemachine', 2, 19], ['tree', 31, 10], ['tree', 1, 6], ['bush', 32, 16], ['haypile', 3, 13], ['crate', 16, 12], ['barrel', 17, 12]];
+    ['campfire', 8, 6], ['campfire', 25, 6], ['campfire', 10, 14], ['cannon', 15, 2], ['cannon', 29, 2], ['flag_cl', 21, 3], ['flag_cl', 17, 8], ['timemachine', 2, 19], ['tree', 31, 10], ['tree', 1, 6], ['bush', 32, 16], ['haypile', 3, 13], ['crate', 16, 12], ['barrel', 17, 12]];
   if (!G.flags.duelo_repaso) P.push(['barrel', 20, 8, { id: 'barrera' }]);
   for (let x = 2; x < 32; x++) if (x !== 19 && x !== 20 && x !== 17) P.push(['fence', x, 8]);
   return {
@@ -359,11 +399,11 @@ MAPS.maipu = () => {
       { id: 'freire', sprite: 'freire', speaker: 'freire', x: 22, y: 6, dir: 'down', talk: () => FREIRE() },
       { id: 'cabo1', sprite: 'patriota', speaker: 'patriota', x: 8, y: 10, wander: 2, talk: 'Cruzamos la cordillera con el Ejército de los Andes. ¡Hacía tanto frío que se congelaban hasta las palabras!' },
       { id: 'cabo2', sprite: 'patriota', speaker: 'patriota', x: 14, y: 15, dir: 'left', talk: 'Hace unos días, en Cancha Rayada, nos sorprendieron de noche. Pero doña Paula Jaraquemada nos ayudó y el ejército se reorganizó.' },
-      { id: 'cabo3', sprite: 'patriota', speaker: 'patriota', x: 28, y: 11, dir: 'down', talk: 'El 12 de febrero se proclamó la Independencia de Chile. ¡Ahora hay que defenderla!' },
+      { id: 'cabo3', sprite: 'patriota', speaker: 'patriota', x: 28, y: 11, dir: 'down', talk: 'El Acta de la Independencia se firmó en Concepción, y el 12 de febrero se juró en todo Chile. ¡Ahora hay que defenderla!' },
       { id: 'cocinero', sprite: 'huaso', speaker: 'huaso', x: 9, y: 6, dir: 'left', talk: 'Charquicán para la tropa. ¡Con esto se gana cualquier batalla!' },
       { id: 'ohiggins', sprite: 'ohiggins', speaker: 'ohiggins', x: 25, y: 9, dir: 'right', cond: 'abrazo_hecho&!medalla_freire2', talk: () => OHIGGINS_MAIPU() },
       { id: 'sanmartin', sprite: 'sanmartin', speaker: 'sanmartin', x: 26, y: 9, dir: 'left', cond: 'abrazo_hecho', talk: 'Soy José de San Martín. Junto a Bernardo y a todos estos valientes, la libertad de Chile está a salvo.' }],
-    objs: [{ x: 6, y: 18, sparkle: true, cond: 'buscar_bandera&!bandera_ok', run: () => BANDERA_FREIRE() }],
+    objs: [{ x: 6, y: 18, sparkle: true, show: 'b_bandera_freire', size: 1.1, cond: 'buscar_bandera&!bandera_ok', run: () => BANDERA_FREIRE() }],
     onEnter: () => MAIPU_ENTER()
   };
 };
@@ -397,22 +437,74 @@ MAPS.valpo = () => {
     onEnter: () => VALPO_ENTER()
   };
 };
+// ------------------------------------------------------------ CERRO HUELÉN · EL MIRADOR DEL TIEMPO (final)
+// Camino de la Victoria: cuatro terrazas. En cada paso angosto hay un obstáculo (se resuelve con un poder)
+// y uno de los Cuatro del Rey. En la cumbre espera el tío.
+MAPS.monte = () => {
+  const g = G0(24, 44, '.');
+  R(g, 0, 0, 24, 2, 'R'); R(g, 0, 0, 2, 44, 'R'); R(g, 22, 0, 2, 44, 'R'); R(g, 0, 43, 24, 1, 'R');
+  [34, 25, 16, 8].forEach(y => { R(g, 2, y, 20, 3, 'R'); R(g, 11, y, 1, 3, ':'); });
+  R(g, 11, 37, 1, 6, ':'); R(g, 5, 28, 13, 1, ':'); R(g, 11, 29, 1, 4, ':'); R(g, 5, 28, 1, 5, ':'); R(g, 17, 28, 1, 5, ':'); R(g, 5, 33, 13, 1, ':');
+  R(g, 11, 19, 1, 6, ':'); R(g, 7, 21, 9, 1, ':'); R(g, 11, 11, 1, 5, ':');
+  R(g, 4, 39, 4, 2, '"'); R(g, 16, 38, 4, 3, '"'); R(g, 3, 20, 3, 3, '*'); R(g, 18, 12, 3, 2, '*'); R(g, 3, 12, 3, 2, '"');
+  R(g, 5, 2, 14, 6, '_'); R(g, 6, 3, 12, 4, '=');
+  const P = [['timemachine', 14, 40], ['pino', 3, 36], ['pino', 19, 41], ['tree', 4, 30], ['tree', 19, 30], ['pino', 3, 22], ['pino', 19, 22], ['pino', 19, 18], ['tree', 3, 13], ['pino', 19, 11],
+    ['rock', 8, 41], ['rock', 15, 31], ['rock', 7, 19], ['campfire', 8, 30], ['campfire', 15, 13],
+    ['signpost', 12, 41], ['lamp', 5, 3], ['lamp', 18, 3], ['flag_cl', 6, 2], ['flag_cl', 17, 2], ['statue', 4, 4], ['statue_oh', 19, 4],
+    ['fence', 11, 27, { id: 'porton', cond: '!obs2' }], ['rock', 11, 18, { id: 'derrumbe', cond: '!obs3' }]];
+  return {
+    name: 'Cerro Huelén · Mirador del Tiempo', era: 'monte', music: 'final', rows: rowsOf(g), props: P, tint: G.flags.monte_final ? null : 'atardecer',
+    npcs: [
+      { id: 'centinela', sprite: 'realista', speaker: 'realista', x: 11, y: 36, dir: 'down', cond: '!obs1', talk: () => OBSTACULO(1) },
+      { id: 'rey1', sprite: 'realista', speaker: 'sgt_talavera', x: 11, y: 34, dir: 'down', cond: '!rey1', talk: () => REY(1) },
+      { id: 'rey2', sprite: 'marco', speaker: 'marco', x: 11, y: 25, dir: 'down', cond: '!rey2', talk: () => REY(2) },
+      { id: 'rey3', sprite: 'osorio', speaker: 'osorio', x: 11, y: 16, dir: 'down', cond: '!rey3', talk: () => REY(3) },
+      { id: 'niebla', sprite: 'olvido', speaker: 'olvido', x: 11, y: 10, dir: 'down', cond: '!obs4', talk: () => OBSTACULO(4) },
+      { id: 'rey4', sprite: 'sanbruno', speaker: 'sanbruno', x: 11, y: 8, dir: 'down', cond: '!rey4', talk: () => REY(4) },
+      { id: 'tio', sprite: 'tio', speaker: 'tio', x: 11, y: 3, dir: 'down', glow: true, spirit: true, cond: 'rey4&!monte_final' }
+    ],
+    objs: [{ x: 11, y: 27, cond: '!obs2', run: () => OBSTACULO(2) }, { x: 11, y: 18, cond: '!obs3', run: () => OBSTACULO(3) },
+      { x: 12, y: 41, text: '«Camino de la Victoria. Cuatro pasos, cuatro guardianes. Solo pasa quien recuerda.»' },
+      { x: 4, y: 4, text: 'Una estatua de *José Miguel Carrera* mira hacia la ciudad. Desde aquí se ve todo Santiago… ¡y todas las épocas a la vez!' },
+      { x: 19, y: 4, text: 'Una estatua de *Bernardo O’Higgins*, el Libertador, con la mano en el pecho. Parece decir: «Aquí está mi pecho»… ¡y una sonrisa!' },
+      { x: 8, y: 30, text: 'Una fogata tibia. MG descansa un momento: ¡ánimo recuperado!' }, { x: 15, y: 13, text: 'Una fogata tibia. Nemo se acurruca un ratito. ¡Ánimo recuperado!' }],
+    triggers: [{ id: 'cumbre', x: 2, y: 6, w: 20, h: 2, cond: 'rey4&!monte_final', run: () => REVELACION() },
+      { id: 'r1', x: 11, y: 35, cond: 'obs1&!rey1', run: () => REY(1) }, { id: 'r2', x: 11, y: 26, cond: 'obs2&!rey2', run: () => REY(2) },
+      { id: 'r3', x: 11, y: 17, cond: 'obs3&!rey3', run: () => REY(3) }, { id: 'r4', x: 11, y: 9, cond: 'obs4&!rey4', run: () => REY(4) }],
+    onEnter: () => MONTE_ENTER()
+  };
+};
 MAPS.oficina = () => ({
   name: 'Oficina de don Diego', era: '1832', music: 'puerto', rows: rowsOf(room(12, 9, { exit: [5, 6], wall: '#' })),
   props: [['deskold', 5, 3], ['bookshelf', 1, 3], ['bookshelf', 2, 3], ['bookshelf', 10, 3], ['chair', 8, 5], ['cofre', 9, 6], ['window', 8, 1, { deco: 1 }], ['painting', 3, 1, { deco: 1 }], ['candela', 1, 6]],
   npcs: [{ id: 'portales', sprite: 'portales', speaker: 'portales', x: 6, y: 4, dir: 'down', talk: () => PORTALES() },
     { id: 'nemo', sprite: 'nemo', x: 3, y: 6, dir: 'down', glow: true, cond: '!nemo_final', talk: () => NEMO_FINAL() }],
   warps: [{ x: 5, y: 8, to: 'valpo', tx: 17, ty: 14, dir: 'down' }, { x: 6, y: 8, to: 'valpo', tx: 17, ty: 14, dir: 'down' }],
-  objs: [{ x: 4, y: 5, sparkle: true, cond: '!medalla_portales', text: 'Papeles desordenados por todo el piso. ¡Nemo!' }, { x: 8, y: 6, sparkle: true, cond: '!medalla_portales', text: 'Más papeles… con fechas y nombres de la historia.' }]
+  objs: [{ x: 4, y: 5, sparkle: true, show: 'b_papeles', cond: '!medalla_portales', text: 'Papeles desordenados por todo el piso. ¡Nemo!' }, { x: 8, y: 6, sparkle: true, show: 'b_papeles', cond: '!medalla_portales', text: 'Más papeles… con fechas y nombres de la historia.' }]
 });
 // ------------------------------------------------------------ Destinos de la nave
 const DESTS = [
-  { label: 'Hoy · Casa de MG', year: 'HOY', map: 'casa_lab', x: 6, y: 5, dir: 'down', cond: 'doce_medallas', before: () => FINAL_ANTES() },
-  { label: 'Santiago, 1810 · El Cabildo', year: '1810', map: 'stgo1810', x: 31, y: 25, cond: 'viaje1' },
+  { label: 'Hoy · Casa de MG', year: 'HOY', map: 'casa_lab', x: 6, y: 5, dir: 'down', cond: 'fin' },
+  { label: 'Santiago, 1810 · El Cabildo abierto', year: '1810', map: 'stgo1810', x: 31, y: 25, cond: 'viaje1' },
   { label: 'La Alameda, 1814 · Casa Carrera', year: '1814', map: 'alameda1814', x: 34, y: 21, cond: 'dest1814' },
   { label: 'Santiago, 1816 · La Reconquista', year: '1816', map: 'stgo1816', x: 31, y: 25, cond: 'dest1816' },
+  { label: 'Mendoza, 1817 · El Ejército de los Andes', year: '1817', map: 'mendoza', x: 26, y: 18, dir: 'down', cond: 'destAndes' },
   { label: 'Chillán, 1817 · La plaza', year: '1817', map: 'chillan', x: 26, y: 17, cond: 'dest1817' },
   { label: 'Maipú, 1818 · El campamento', year: '1818', map: 'maipu', x: 3, y: 20, cond: 'dest1818' },
   { label: 'Santiago, 1823 · El piano', year: '1823', map: 'stgo1823', x: 31, y: 25, cond: 'dest1823' },
-  { label: 'Valparaíso, 1832 · El puerto', year: '1832', map: 'valpo', x: 11, y: 6, cond: 'dest1832' }
+  { label: 'Valparaíso, 1832 · El puerto', year: '1832', map: 'valpo', x: 11, y: 6, cond: 'dest1832' },
+  { label: 'Cerro Huelén · Mirador del Tiempo', year: '¿?', map: 'monte', x: 11, y: 41, dir: 'up', cond: 'doce_medallas' }
 ];
+// ------------------------------------------------------------ mapas exteriores más grandes (barrios nuevos al sur y al este; ver js/barrios.js)
+const AMPLIAR = {
+  stgo1810: { sur: 16, este: 12, era: '1810', seed: 3, rio: true },
+  stgo1816: { sur: 16, este: 12, era: '1816', seed: 4, rio: true, guardias: true },
+  stgo1823: { sur: 16, este: 12, era: '1823', seed: 5, rio: true },
+  alameda1814: { sur: 13, era: '1814', seed: 6 },
+  hacienda: { sur: 12, era: '1816', seed: 7, estilo: 'campo', vecinos: 2 },
+  mendoza: { sur: 10, era: '1817', seed: 8, estilo: 'campamento' },
+  chillan: { sur: 13, este: 10, era: '1817', seed: 9 },
+  maipu: { sur: 10, era: '1818', seed: 10, estilo: 'campamento' },
+  valpo: { este: 12, era: '1832', seed: 11, estilo: 'puerto' }
+};
+for (const [id, o] of Object.entries(AMPLIAR)) { const f = MAPS[id]; MAPS[id] = () => ampliar(f(), Object.assign({ id }, o)); }

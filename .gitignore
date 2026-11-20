@@ -1,7 +1,11 @@
 # Archivos de desarrollo que no van en la versión pública
 test_harness.js
+test_cine.js
 test_arte.html
 herramientas/
 .claude/
 capturas/
 *.log
+fuentes/decisiones_*.md
+tomas_trailer.js
+fuentes/informe_aprendizaje.md

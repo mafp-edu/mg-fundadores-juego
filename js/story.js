@@ -9,7 +9,7 @@ function removeProp(id) { const p = G.props.find(p => p.opts.id === id); if (!p)
 function addProp(type, x, y, opts = {}) { const art = getPropArt(type, opts); const base = Array.isArray(art) ? art[0] : art; const pr = { type, x, y, fw: base.fw, fh: base.fh, art, opts }; G.props.push(pr); if (!opts.deco) for (let yy = y; yy < y + pr.fh; yy++) for (let xx = x; xx < x + pr.fw; xx++) G.map.solid[yy][xx] = true; return pr; }
 function nemoJoin(id = 'nemo') {
   const e = G.ents.find(x => x.id === id); const x = e ? e.x : G.player.x, y = e ? e.y : G.player.y;
-  despawn(id); setFlag('nemo_sigue'); G.follower = makeEnt({ id: 'nemo', x, y, dir: 'down', sprite: 'nemo', speed: 4.2, ghost: true, solid: false, glow: false });
+  despawn(id); setFlag('nemo_sigue'); G.follower = makeEnt({ id: 'nemo', x, y, dir: 'down', sprite: 'nemo', speed: 4.2, ghost: true, solid: false, glow: false }); if (G.player) G.player.crumbs = [];
 }
 async function nemoVanish() {
   const f = G.follower || G.ents.find(e => e.id === 'nemo'); if (!f) return;
@@ -121,7 +121,6 @@ const COCINA = async () => {
 };
 const PAPA_TALK = async () => { await say('papa', G.flags.fin ? '¡Qué aventura, MG! Pero la próxima vez… vuelve antes de la cena.' : '¿Vas al laboratorio? Tu mamá está terminando la nave. ¡Ten cuidado con los botones!'); };
 const MAX_TALK = async () => { AUD.sfx('select'); await say('max', G.flags.fin ? '¡Nemo! ¡Nemo! ¡Nemooo!' : '¡Pelota! ¡Pelota! ¡Brrrum!'); await say('mg', G.flags.fin ? 'Max no suelta a Nemo desde que volvimos.' : 'Mi hermano Max tiene tres años. Es como un torbellino humano: ¡nunca para!'); };
-const TIO_FIN = async () => { await say('tio', '¿Y? ¿Te gustó el libro, MG? Ellos soñaron con un Chile donde todos pudieran ser libres y felices.'); await say('tio', 'Ahora es nuestro turno de trabajar por ese sueño. ¡Viva Chile!'); };
 const MAMA_TALK = async () => {
   if (G.flags.fin) { await say('mama', 'La nave quedó un poco chamuscada… ¡pero valió la pena! Puedes volver a visitar a tus amigos cuando quieras.'); return; }
   if (G.flags.accidente) { await say('mama', G.flags.vestido && G.flags.mochila ? 'Todo listo. Súbete a la nave cuando quieras, MG.' : 'Prepárate bien: ropa de la época y algo para comer. ¡Te esperamos aquí!'); return; }
@@ -184,7 +183,6 @@ const PARTIDA = async () => {
   await walk('max', 'R'); face('max', 'mg');
   await say('max', 'Lo siento, MG…');
   await say('mg', 'No te preocupes, Max. Voy a traer de vuelta a Nemo.');
-  await say(N, 'MG se sube a la nave y se sienta en el asiento del piloto. El asiento de Nemo está vacío… por ahora.');
   await say('papa', 'Cinco… cuatro… tres…'); await say('mama', '¡Cuídate mucho!'); await say('max', '¡Dos… uno!');
   await say('mg', 'Nemo, allá voy. Si alguien tiene a mi perro en algún lugar de la historia… ¡lo voy a encontrar!');
   setFlag('viaje1'); setObjective('Encontrar a Nemo en el Santiago de 1810.', true);
@@ -193,14 +191,15 @@ const PARTIDA = async () => {
 
 // =================================================================== CAPÍTULO 1 · SANTIAGO 1810
 const STGO1810_ENTER = async () => {
+  if (G.flags.jinete_pendiente && !G.flags.jinete_visto) { await JINETE_ESCENA(); return; }
   if (!G.flags.llego_1810) {
     setFlag('llego_1810'); await chapterOnce(1);
     await say('mg', 'Es como si hubieran pintado la ciudad de nuevo, pero con colores más… ¿antiguos?');
     await say('mg', 'Calles de tierra, casas bajas con techos de tejas rojas, ¡y caballos en lugar de autos!');
-    await say('mg', 'Según el mapa de mi tío, debo buscar a don Mateo cerca de un edificio llamado *Cabildo*. Está al lado norte de la Plaza de Armas.');
+    await say('mg', 'Según el mapa de mi tío, debo buscar a don Mateo cerca de un edificio llamado *Real Consulado*. Está a pasos de la Plaza de Armas, en la esquina de las calles Bandera y Compañía.');
     await say('vendedora', '¡Dulces! ¡Dulces frescos!');
     await say('mg', 'Mmm… ¡no! *Primero Nemo, después dulces.*');
-    setObjective('Buscar a don Mateo frente al Cabildo (al norte de la plaza).');
+    setObjective('Buscar a don Mateo frente al Real Consulado (al norte de la plaza).');
     await sleep(400); toast('Consejo: mantén B (o Shift) para correr. La flecha dorada te guía.', 5);
   }
 };
@@ -211,7 +210,7 @@ const MATEO_PLAZA = async () => {
     await say('mateo', '¿Te has perdido, pequeña?');
     await say(N, 'MG hace una reverencia, como le enseñó su mamá.');
     await say('mg', 'Buenos días, señor. Me llamo María Gracia. Estoy buscando a mi perro Nemo. Tiene un collar brillante y muy especial.');
-    await say('mateo', 'Un perrito con collar brillante… Sí, me pareció verlo correteando por los pasillos del Cabildo. Los guardias intentaron atraparlo, pero es bastante escurridizo.');
+    await say('mateo', 'Un perrito con collar brillante… Sí, me pareció verlo correteando por los pasillos del Real Consulado. Los guardias intentaron atraparlo, pero es bastante escurridizo.');
     await say('mg', '¡Es Nemo! ¿Puedo entrar a buscarlo, por favor?');
     await say('mateo', 'Claro… pero hoy es un día muy especial. Convoqué a una *reunión urgente*: un Cabildo abierto con los vecinos de Santiago.');
     await say('mateo', 'Me faltan tres invitaciones por entregar, y mis piernas ya no son las de antes. ¡Tengo 83 años! ¿Me ayudarías?');
@@ -222,24 +221,24 @@ const MATEO_PLAZA = async () => {
   }
   const n = G.flags.inv || 0;
   if (n < 3) { await say('mateo', `Llevas ${n} de 3 invitaciones. Busca a los vecinos: uno junto a la pileta, una señora cerca de la Catedral y un huaso junto a la carreta.`); return; }
-  await say('mateo', '¡Excelente, María Gracia! Eres muy amable. Ahora sí: ¡que comience el Cabildo! Ven, te mostraré el lugar mientras buscamos a tu perrito.');
+  await say('mateo', '¡Excelente, María Gracia! Eres muy amable. Ahora sí: ¡que comience el Cabildo abierto! Ven, te mostraré el lugar mientras buscamos a tu perrito.');
   setFlag('cabildo_abierto');
   await walk('mateo', 'RR'); face('mateo', 'up'); await sleep(200); despawn('mateo'); despawn('guardia'); AUD.sfx('door');
-  setObjective('Entrar al Cabildo.');
+  setObjective('Entrar al Real Consulado.');
 };
 const INVITADO = async (k) => {
   const done = G.flags['inv' + k];
   const L = {
-    1: ['¿Una invitación de don Mateo? ¡Qué honor! Allí estaré.', 'Mientras el rey esté prisionero, alguien tiene que cuidar el Reino de Chile, ¿no crees?', 'Gracias, niña. Nos vemos en el Cabildo.'],
+    1: ['¿Una invitación de don Mateo? ¡Qué honor! Allí estaré.', 'Mientras el rey esté prisionero, alguien tiene que cuidar el Reino de Chile, ¿no crees?', 'Gracias, niña. Nos vemos en el Consulado.'],
     2: ['¡Ay, mijita, gracias! Mi esposo no se lo va a perder.', 'Dicen que hoy, 18 de septiembre, es un día que recordaremos por siempre.', 'Que Dios te bendiga, pequeña.'],
     3: ['¡Buena, patroncita! ¿Al Cabildo? ¡Me pongo mi mejor manta!', 'Vengo del campo. Allá también queremos que nos escuchen.', '¡Allá nos vemos!']
   }[k];
   const who = { 1: 'vecino', 2: 'vecina2', 3: 'huaso' }[k];
-  if (!G.flags.mateo_conocido || !hasItem('invitacion') && !done) { await say(who, k === 3 ? '¿Viste el Cabildo? ¡Hoy hay mucho movimiento!' : 'Buenos días, niña. ¡Qué alboroto hay hoy en la plaza!'); return; }
+  if (!G.flags.mateo_conocido || !hasItem('invitacion') && !done) { await say(who, k === 3 ? '¿Viste el Real Consulado? ¡Hoy hay mucho movimiento!' : 'Buenos días, niña. ¡Qué alboroto hay hoy en la plaza!'); return; }
   if (done) { await say(who, L[2]); return; }
   takeItem('invitacion'); setFlag('inv' + k); G.flags.inv = (G.flags.inv || 0) + 1; AUD.sfx('correct');
   await say(N, 'MG entrega una invitación.'); await say(who, L[0]); await say(who, L[1]);
-  setObjective(G.flags.inv >= 3 ? 'Volver donde don Mateo, frente al Cabildo.' : `Entregar 3 invitaciones a los vecinos de la plaza (${G.flags.inv}/3).`);
+  setObjective(G.flags.inv >= 3 ? 'Volver donde don Mateo, frente al Real Consulado.' : `Entregar 3 invitaciones a los vecinos de la plaza (${G.flags.inv}/3).`);
 };
 const VENDEDORA_1810 = async () => {
   if (!G.flags.dulce1810 && G.flags.cabildo_abierto) { await say('vendedora', '¡Qué niña más educada! Toma, mijita, un dulce de regalo. Para el camino.'); await giveItem('dulce'); setFlag('dulce1810'); return; }
@@ -250,7 +249,7 @@ const CABILDO_ENTER = async () => {
     setFlag('cabildo_dentro');
     await say('mg', 'Es como un palacio… candelabros, cuadros de reyes y estantes llenos de libros.');
     face('mateo', 'mg');
-    await say('mateo', '¿Nunca habías estado en el Cabildo? Ven aquí, junto al gran mapa. Te quiero mostrar algo.');
+    await say('mateo', 'Este es el Real Consulado. Hoy caben aquí más de cuatrocientos vecinos. Ven, junto al gran mapa: te quiero mostrar algo.');
     setObjective('Hablar con don Mateo junto al gran mapa.');
   }
 };
@@ -278,15 +277,14 @@ const MATEO_CABILDO = async () => {
 const MAPA_ESPANA = async (fromMateo) => {
   if (!fromMateo) { await say(N, 'Un gran mapa de España y América. ¡Hay un océano enorme entre los dos!'); if (G.flags.mapa_visto || G.flags.medalla_mateo) return; if (!G.flags.cabildo_dentro) return; await say('mg', 'Mejor le pregunto a don Mateo.'); return; }
   await say('mateo', 'Mira: nosotros estamos aquí, en Chile. Y muy lejos, al otro lado del océano, está España. Durante muchos años, los reyes de España han decidido todo lo que hacemos aquí.');
-  await say('mg', 'Como cuando mis papás deciden todo por mí.');
-  await say('mateo', 'Exacto. Pero imagina que tus padres estuvieran tan lejos que tardaran *meses* en responderte. Y que además tuvieran problemas muy graves en casa.');
+  await say('mateo', 'Imagina que tus padres estuvieran tan lejos que tardaran *meses* en responderte. Y que además tuvieran problemas muy graves en casa.');
   await say('mateo', 'El rey ha sido capturado por los franceses y hay mucha confusión. Por eso hoy debemos decidir: ¿seguimos esperando órdenes que no llegan, o aprendemos a tomar nuestras propias decisiones?');
   await say('mg', 'Como cuando aprendí a nadar… Tenía miedo, pero quería hacerlo sola.');
   await say('mateo', '¡Precisamente! Y seguro fallaste algunas veces antes de lograrlo. Quizás nos equivoquemos al principio, pero si trabajamos mucho, aprenderemos a hacerlo bien.');
   await say('mg', '¡Exacto! Por eso somos todos chile…');
   await emote('mg', '!', 600);
-  await say('mg', '(Espera… ¡todavía no somos «chilenos»!)');
-  await card('¡Ups! Casi me equivoco…', ['En 1810, las personas que vivían en Chile no se llamaban «chilenos». Se consideraban *españoles que vivían en estas tierras*.', 'El 3 de junio de 1818, después de la Batalla de Maipú, se estableció que a quienes nacían en esta tierra se les llamaría *chilenos*. ¡Eso es 8 años en el futuro desde donde estoy!', 'Construir una identidad toma tiempo. Primero hay que conquistar la libertad… ¡y después decidir cómo llamarnos!'], [['1810', 'Primera Junta', true], ['1818', '«Chilenos»']]);
+  await say('mg', '(Espera… en los papeles de 1810 todavía nos anotan como «españoles»…)');
+  await card('¡Ups! Casi me equivoco…', ['En 1810 Chile era parte del Reino de España. En los registros oficiales, a quien nacía aquí se le anotaba como *español, natural de esta tierra*.', 'El 3 de junio de 1818, después de la Batalla de Maipú, un decreto de O\'Higgins ordenó escribir *chileno* en los registros, y llamar chilenos también a los pueblos indígenas. ¡Eso es 8 años en el futuro desde donde estoy!', 'Construir una identidad toma tiempo. Primero hay que conquistar la libertad… ¡y después decidir cómo llamarnos!'], [['1810', 'Primera Junta', true], ['1818', '«Chilenos»']]);
   setFlag('mapa_visto');
   await say('mateo', 'Hmm… ese vecino de allá no está convencido de nada. ¿Por qué no conversas con él?');
   setObjective('Convencer al Vecino Dudoso (Duelo de Ideas).');
@@ -299,7 +297,7 @@ const DUDOSO = async () => {
   setObjective('Volver donde don Mateo.');
 };
 function LIBROS_SALAS() {
-  return [[17, 4], [22, 11], [15, 13]].map(([x, y], i) => ({ x, y, sparkle: true, cond: 'buscar_libros&!libro' + (i + 1), run: async () => { setFlag('libro' + (i + 1)); G.flags.libros = (G.flags.libros || 0) + 1; await giveItem('libro_salas', 1); setObjective(G.flags.libros >= 3 ? 'Devolver los libros a Manuel de Salas.' : `Recoger los libros de Manuel de Salas (${G.flags.libros}/3).`); } }));
+  return [[17, 4], [22, 11], [15, 13]].map(([x, y], i) => ({ x, y, sparkle: true, show: 'b_libro', cond: 'buscar_libros&!libro' + (i + 1), run: async () => { setFlag('libro' + (i + 1)); G.flags.libros = (G.flags.libros || 0) + 1; await giveItem('libro_salas', 1); setObjective(G.flags.libros >= 3 ? 'Devolver los libros a Manuel de Salas.' : `Recoger los libros de Manuel de Salas (${G.flags.libros}/3).`); } }));
 }
 const SALAS = async () => {
   if (!G.flags.nemo_salas) {
@@ -337,15 +335,37 @@ const SALAS = async () => {
   await nemoVanish(); despawn('salas');
   await say('mg', '¡NEMOOO!');
   setFlag('jinete_pendiente');
-  setObjective('Salir del Cabildo y buscar a Nemo.');
+  setObjective('Buscar a Nemo.');
+  await say('mg', '¡Nemo, espérame!');
+  await runTo('mg', 11, 15, 9);
+  await warp('stgo1810', 17, 9, 'down');   // al entrar a la plaza sigue la escena (JINETE_ESCENA)
+};
+// camino más corto (por baldosas) para escenas automáticas
+async function runTo(id, x, y, speed = 8) {
+  const e = findEnt(id); if (!e) return false; const path = bfsPath(e.x, e.y, x, y); if (!path) return false;
+  let s = ''; for (let i = 1; i < path.length; i++) { const [ax, ay] = path[i - 1], [bx, by] = path[i]; s += bx > ax ? 'R' : bx < ax ? 'L' : by > ay ? 'D' : 'U'; }
+  if (s) await walk(id, s, speed); return true;
+}
+// MG sale corriendo, se detiene en el parque y llega el jinete de capa azul (O'Higgins, sin decir su nombre)
+const JINETE_ESCENA = async () => {
+  if (G.flags.jinete_visto) return;
+  G.tint = 'atardecer'; AUD.play('triste');
+  await runTo('mg', 25, 23, 9);
+  face('mg', 'down');
+  await say('mg', '(Se volvió a ir… ¿Por qué sigue desapareciendo? ¿Qué estoy haciendo mal?)');
+  await emote('mg', '…', 1200);
+  await say(N, 'MG se sienta en una piedra del parque, agotada y triste. Las calles se ven cada vez más vacías…');
+  AUD.sfx('gallop'); await sleep(600);
+  spawn({ id: 'jinete', horse: 'jinete', speaker: 'jinete', x: G.map.w - 2, y: 23, dir: 'left', ghost: true, talk: () => JINETE() });
+  await say(N, 'De repente, se escuchan cascos de caballo…');
+  AUD.sfx('gallop'); await walk('jinete', 'L'.repeat(Math.max(1, G.map.w - 2 - 27)), 6);
+  face('mg', 'right');
+  await JINETE();
 };
 const JINETE = async () => {
   if (G.flags.jinete_visto) { await say('jinete', 'Que tengas suerte en tu búsqueda, pequeña patriota.'); return; }
   setFlag('jinete_visto');
-  await say('mg', '(Se volvió a ir… ¿Por qué sigue desapareciendo? ¿Qué estoy haciendo mal?)');
-  await say(N, 'MG se sienta en una piedra, agotada y triste. Las calles se ven cada vez más vacías…');
-  AUD.sfx('gallop'); await sleep(800);
-  await say(N, 'De repente, se escuchan cascos de caballo. Un jinete en un caballo blanco, con capa azul y unas patillas colorinas…');
+  await say(N, 'Un jinete en un caballo blanco, con capa azul y unas patillas colorinas, se detiene frente a ella.');
   await say('jinete', '¿Te encuentras bien, pequeña? Pareces muy preocupada.');
   await say('mg', 'Perdí a mi perro otra vez. Se llama Nemo y tiene un collar muy especial. Desapareció justo cuando el señor De Salas nombró a una señora llamada Javiera Carrera.');
   await say('jinete', '¿Doña Javiera? Una mujer extraordinaria. Parece que tu perro tiene muy buen criterio para elegir a las personas importantes de esta tierra.');
@@ -356,9 +376,9 @@ const JINETE = async () => {
   await say('mg', '«Azul, blanco y amarillo fueron los colores que ella eligió»… ¡Aquí dice que vivía cerca de la Alameda! Y hay una fecha: *1814*.');
   await say('mg', '¿Viajar al futuro? Pero si recién vine al pasado… No quiero… ¿Y si no vuelvo a ver a Nemo?');
   await say('jinete', '¡Debes tener valor! El valor no está en no tener miedo, sino en seguir adelante a pesar del miedo. ¡Tú puedes!');
-  await say('mg', '¡Tengo que encontrar algo que perdí! ¡Nemo me está esperando con doña Javiera!');
+  await say('mg', '(Ahora entiendo: Nemo va de fundador en fundador… y mi camino es seguirlo y conocerlos a todos. ¡El libro es mi mapa!)');
   await say('jinete', 'Que tengas suerte, pequeña patriota… que nuestra tierra nos vuelva a encontrar.');
-  AUD.sfx('gallop'); const j = findEnt('jinete'); if (j) { j.ghost = true; await walk('jinete', 'LLLLLLLL', 8); despawn('jinete'); }
+  AUD.sfx('gallop'); const j = findEnt('jinete'); if (j) { j.ghost = true; await walk('jinete', 'UUUULLLLLLLL', 8); despawn('jinete'); }
   setFlag('jinete_pendiente', false); setFlag('dest1814'); G.tint = null; AUD.play('colonia');
   setObjective('Volver a la nave (esquina sureste de la plaza) y viajar a 1814.');
 };
@@ -385,7 +405,8 @@ const JAVIERA = async () => {
   if (!G.flags.javiera_hablo) {
     setFlag('javiera_hablo'); meet('javiera');
     await say('mg', 'Buenos días, señora. Soy María Gracia. He… he escuchado hablar de usted.');
-    await say('javiera', '¿En serio? Espero que sean cosas buenas. Te cuento: en estos años han pasado muchas cosas. Organizamos el *primer Congreso*, para escribir nuestras propias leyes.');
+    await say('javiera', '¿En serio? Espero que sean cosas buenas. Te cuento: en estos años han pasado muchas cosas. En 1811 se reunió el *primer Congreso Nacional*, para escribir nuestras propias leyes.');
+    await say('javiera', 'Y en 1812 salió la *Aurora de Chile*, ¡el primer periódico del país! Lo escribía fray Camilo Henríquez, y la gente lo leía en voz alta.');
     await say('javiera', 'Y gracias al trabajo de Manuel de Salas, los hijos de los esclavos ahora nacen libres.');
     await say('mg', '¿Manuel de Salas? ¡Lo logró!');
     await say('javiera', 'Pero aún no somos completamente libres. Por eso esta bandera es tan importante… ¡Oh, no! ¡El viento se llevó mis telas!');
@@ -442,7 +463,7 @@ const RANCAGUA = async () => {
   await walk('jmcarrera', 'UUU', 3); face('javiera', 'jmcarrera');
   await say('jmcarrera', 'Javiera… hermana…');
   await say('javiera', '¡José Miguel! ¿Qué ha pasado? Te ves…');
-  await say('jmcarrera', 'Rancagua, hermana. Ha sido… un desastre. Luchamos dos días con todo nuestro corazón. O\'Higgins, Freire, todos los valientes… lucharon como leones. Pero los españoles eran demasiados.');
+  await say('jmcarrera', 'Rancagua, hermana. Ha sido… un desastre. O\'Higgins y los suyos resistieron más de un día y medio en la plaza, ¡y les cortaron el agua! Luis llegó con dos cañones solo para cubrir la retirada. Los realistas eran muchos más.');
   meet('jmcarrera');
   await say('jmcarrera', 'Los realistas retomaron el control de Chile. Los patriotas que puedan deben huir al otro lado de la cordillera.');
   await say(N, 'Un silencio pesado llena el jardín. Hasta las telas parecen haberse quedado quietas.');
@@ -480,8 +501,42 @@ const JMC = async () => {
   await say('mg', 'La bitácora dice: «Manuel Rodríguez: el espía más astuto de Chile. Buscar durante la *Reconquista española, 1814-1817*».');
   await say('jmcarrera', 'Pequeña, no sé cómo lo haces, pero pareces conocer el futuro.');
   await say('mg', 'No conozco el futuro, señor Carrera. Solo conozco la historia. Y la historia me dice que *Chile será libre*. ¡Se los prometo!');
+  await SANBRUNO_1814();
+  await PERSECUCION_1814();
   setFlag('dest1816'); setObjective('Volver a la nave (al sureste de la Alameda) y viajar a 1816.');
   AUD.play('alameda');
+};
+// persecución: dos Talaveras corren tras MG hasta la nave
+const PERSECUCION_1814 = async () => {
+  if (G.flags.huida_1814) return;
+  const p = G.player;
+  // aparecen DETRÁS de MG (lejos de la nave, que está al sureste), en casillas libres
+  const libre = (x, y) => { for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const X = x + dx, Y = y + dy; if (X > 0 && Y > 0 && X < G.map.w - 1 && Y < G.map.h - 1 && !isSolidAt(X, Y, p)) return [X, Y]; } return [x, y]; };
+  const [ax, ay] = libre(Math.max(1, p.x - 6), p.y), [bx, by] = libre(Math.max(1, p.x - 4), Math.max(1, p.y - 3));
+  spawn({ id: 'pt1', sprite: 'realista', speaker: 'sgt_talavera', x: ax, y: ay, dir: 'right' });
+  spawn({ id: 'pt2', sprite: 'realista', speaker: 'realista', x: bx, y: by, dir: 'right' });
+  await emote('pt1', '!', 600);
+  await say('sgt_talavera', '¡Alto! Soy sargento del regimiento Talavera… ¡y esa es la niña que ayuda a los Carrera! ¡Atrápenla!');
+  await say('mg', '¡Ay, no! ¡A la nave, rápido! (Mantén B para correr.)');
+  setObjective('¡Huye de los soldados hasta la nave (al sureste)!');
+  await chase({ ids: ['pt1', 'pt2'], goal: [33, 21, 4, 2], safe: [p.x, p.y, p.dir], speed: 4.6 });
+  setFlag('huida_1814'); AUD.sfx('correct');
+  await say('mg', '¡Uf! ¡Los dejé atrás!'); despawn('pt1'); despawn('pt2');
+};
+const SANBRUNO_1814 = async () => {
+  if (G.flags.sanbruno_1814) return;
+  AUD.play('reconquista');
+  await say(N, 'Se escuchan tambores. Por la entrada del jardín llegan soldados de casaca roja…');
+  spawn({ id: 'sanbruno', sprite: 'sanbruno', speaker: 'sanbruno', x: 14, y: 11, dir: 'up', ghost: true });
+  spawn({ id: 'explorador', sprite: 'realista', speaker: 'realista', x: 15, y: 11, dir: 'up', ghost: true });
+  await walk('sanbruno', 'UU', 3); await walk('explorador', 'UU', 3);
+  await say('sanbruno', 'Soy el capitán *Vicente San Bruno*, del regimiento Talavera. Desde hoy, Santiago obedece otra vez al Rey.');
+  await say('sanbruno', 'Dicen que los Carrera escapan a la cordillera… ¡Explorador! Revisa a esa niña: algo sabe.');
+  await battle(OPPONENTS.explorador);
+  await say('sanbruno', 'Hmm… Una niña que sabe tanta historia es peligrosa. Te estaré vigilando, pequeña.');
+  await walk('sanbruno', 'DD', 4); await walk('explorador', 'DD', 4); despawn('sanbruno'); despawn('explorador');
+  await say('mg', '(Ese capitán me da escalofríos… ¡Pero no me voy a rendir!)');
+  setFlag('sanbruno_1814');
 };
 
 // =================================================================== CAPÍTULO 3 · RECONQUISTA 1816
@@ -490,14 +545,49 @@ const STGO1816_ENTER = async () => {
     setFlag('llego_1816'); await chapterOnce(3);
     await say('mg', 'El Santiago de 1816 es distinto… Las calles están silenciosas y hay soldados en cada esquina. La gente camina rápido y habla en susurros.');
     await say('mg', 'La bitácora dice: «Si buscas a alguien que no quiere ser encontrado, busca primero a quienes lo ayudan».');
-    await say(N, '¡Cuidado! Si un soldado realista te ve en su camino, te mandará de vuelta. Observa hacia dónde miran y muévete cuando no te vean.');
+    spawn({ id: 'pregonero', sprite: 'realista', speaker: 'pregonero', x: 30, y: 22, dir: 'down', ghost: true });
+    spawn({ id: 'marco', sprite: 'marco', speaker: 'marco', x: 32, y: 22, dir: 'down', ghost: true });
+    await say('pregonero', '¡Bando del gobernador! Se prohíbe dar alojamiento a *Manuel Rodríguez*. ¡Habrá recompensa para quien lo entregue!');
+    await say('pregonero', 'Y recuerden: para alejarse más de seis leguas de Santiago se necesita *pasaporte*. ¡Y al anochecer hay *toque de queda*: todos a sus casas!');
+    await say('marco', 'Ejem. Lo firmo yo, *Francisco Casimiro Marcó del Pont*, gobernador del Reino. ¿Les gustan mis encajes? Son de Europa.');
+    await say('mg', '(¡Cuánto encaje! Pero ese bando es contra Manuel Rodríguez… Tengo que encontrarlo antes que ellos.)');
+    despawn('pregonero'); despawn('marco');
+    await say('mg', '(La bitácora del tío dice que a don Manuel de Salas y a otros patriotas los desterraron a la isla *Juan Fernández*, en medio del mar. ¡Viven en cuevas del cerro!)');
+    await say(N, '¡Cuidado con los soldados! Si uno te ve, te interrogará. Observa hacia dónde miran (su franja roja) y muévete cuando no te vean.');
     setObjective('Hablar con la señora que susurra, junto a la nave.');
   }
+  if (G.flags.respuesta && !G.flags.duelo_sargento) {
+    const p = G.player;
+    spawn({ id: 'sargento16', sprite: 'realista', speaker: 'sgt_talavera', x: p.x, y: p.y + 2, dir: 'up', ghost: true });
+    await emote('sargento16', '!', 600);
+    await say('sgt_talavera', '¡Alto! ¿Saliste de la casa de doña Luisa? En esa casa se canta demasiado… ¡y se conspira!');
+    await say('mg', '(¡La respuesta para doña Águeda! Tengo que convencerlo con mis ideas.)');
+    await battle(OPPONENTS.sargento);
+    setFlag('duelo_sargento'); despawn('sargento16');
+  }
 };
+const SANBRUNO_PORTON = async () => {
+  if (G.flags.duelo_sanbruno) return;
+  face('sanbruno', 'mg');
+  await say('sanbruno', '¡Vaya, vaya! La niña de la Alameda. ¿Ibas al sur, a ver a algún «amigo»? Nadie sale de Santiago sin *pasaporte*.');
+  await say('mg', '¡No le tengo miedo, capitán! Sé más historia que usted.');
+  await battle(OPPONENTS.sanbruno);
+  setFlag('duelo_sanbruno');
+  await say('sanbruno', '¡Retirada! Pero ten cuidado en el campo, niña: mis patrullas están por todas partes.');
+  despawn('sanbruno'); despawn('talav_porton');
+  setObjective('Salir por el camino del sur hacia la hacienda de doña Paula.');
+};
+// Si un soldado ve a MG: interrogatorio corto (duelo de 2 preguntas). Al ganarlo, sigue donde estaba.
+async function interrogatorio(e, opp = 'interrogatorio') {
+  if (e) face(e.id, 'mg');
+  await battle(OPPONENTS[opp]);
+  const until = G.t + 6;
+  G.ents.forEach(x => { if (x.guard) x.guard.cooldown = until; });
+  toast('Los soldados te dejarán tranquila unos segundos. ¡Aprovecha! (Pasa cuando miren hacia otro lado.)', 5);
+}
 const GUARDIA_VE = async (e) => {
-  await say('realista', '¡Alto ahí! ¿Qué hace una niña sola en la calle, con estos tiempos? ¡A su casa!');
-  await warp('stgo1816', 31, 25, 'up', { skipEnter: true });
-  toast('Pista: mira la franja roja de cada soldado y pasa cuando mire hacia otro lado.', 5);
+  await say('realista', '¡Alto ahí! ¿Qué hace una niña sola en la calle, con estos tiempos?');
+  await interrogatorio(e);
 };
 const SUSURRO_1816 = async () => {
   if (!G.flags.carta && !G.flags.carta_entregada) { await say('vecina', 'Shhh… Si buscas amigos de la libertad, ve a la casa de *doña Águeda*, al suroeste de la plaza. Allí hay tertulias… muy secretas.'); setObjective('Llegar a la casa de doña Águeda (suroeste) sin que te vean.'); return; }
@@ -552,8 +642,8 @@ const PAULA = async () => {
     await say('mg', '(En voz bajita) Busco a Manuel Rodríguez… y a mi perro Nemo, que tiene un collar brillante.');
     await say(N, 'La señora la mira de pies a cabeza, como en un examen que nunca termina… ¡Es doña Paula Jaraquemada, igual que en el libro!');
     meet('paula');
-    await say('paula', '¿Ves ese establo? La semana pasada unos soldados quisieron llevarse mis caballos para perseguir a los patriotas. ¿Y sabes qué hice?');
-    await say('paula', 'Me paré en la puerta con mi hacha de cortar leña y les dije: «si quieren los caballos, primero tendrán que pasar sobre mí». ¡Se fueron con las manos vacías!');
+    await say('paula', 'En esta hacienda de Paine ayudo a los que persiguen los soldados del Rey. Y mis caballos no son para cazar patriotas.');
+    await say('paula', '¿Ves ese establo? Los soldados quieren llevarse mis caballos para perseguir a Manuel Rodríguez. ¡No se los voy a entregar!');
     await say('paula', 'Y ahora… ¿escuchas? ¡Vienen otra vez! Ayúdame: *empuja los fardos de paja* hasta las marcas, frente a la puerta del establo. ¡Así no podrán entrar!');
     setObjective('Empujar los 3 fardos de paja hasta las marcas frente al establo.');
     return;
@@ -620,7 +710,23 @@ const OLLA = async () => {
   despawn('rodriguez');
   setObjective('Bajar por la puerta secreta y cruzar el túnel oscuro.');
 };
-const TUNEL_ENTER = async () => { if (!G.flags.tunel_visto) { setFlag('tunel_visto'); await say('mg', '¡Qué oscuro! Hay antorchas en las paredes, telarañas que brillan… y murciélagos colgando del techo. ¡Brrr!'); await say(N, 'Busca la escalera de salida al otro lado del túnel.'); } };
+const TUNEL_ENTER = async () => { if (!G.flags.tunel_huida) { await PERSECUCION_TUNEL(); } if (!G.flags.tunel_visto) { setFlag('tunel_visto'); await say('mg', '¡Qué oscuro! Hay antorchas en las paredes, telarañas que brillan… y murciélagos colgando del techo. ¡Brrr!'); await say(N, 'Busca la escalera de salida al otro lado del túnel.'); } };
+// persecución en el túnel: dos soldados bajaron por la trampilla
+const PERSECUCION_TUNEL = async () => {
+  const p = G.player;
+  await say('mg', '¡Qué oscuro! Hay antorchas en las paredes, telarañas que brillan… y murciélagos colgando del techo. ¡Brrr!');
+  setFlag('tunel_visto');
+  await walk('mg', 'DD', 6);
+  AUD.sfx('door'); await sleep(300);
+  spawn({ id: 'tt1', sprite: 'realista', speaker: 'sgt_talavera', x: 1, y: 1, dir: 'down', ghost: true });
+  await say('sgt_talavera', '(Desde arriba) ¡Una trampilla! … ¡¿Otra vez esa niña?! ¡Bajen todos, que no se escape!');
+  const t1 = findEnt('tt1'); if (t1) t1.ghost = false;
+  await say('mg', '¡Me siguen por el túnel! ¡Tengo que llegar a la salida, abajo a la derecha!');
+  setObjective('¡Escapa por el túnel hasta la escalera de salida (abajo a la derecha)!');
+  await chase({ ids: ['tt1'], goal: [20, 13, 2, 1], safe: [1, 3, 'right'], speed: 4.3 });
+  setFlag('tunel_huida'); despawn('tt1');
+  await say('mg', '¡Los perdí en el laberinto! La salida está aquí mismo.');
+};
 const CAMPO_ENTER = async () => {
   if (!G.flags.campo_visto) {
     setFlag('campo_visto');
@@ -629,21 +735,28 @@ const CAMPO_ENTER = async () => {
     setObjective('Cruzar los campos sin que te vean y llegar donde Manuel Rodríguez (arriba a la derecha).');
   }
 };
-const SOLDADO_CAMPO_VE = async () => { await say('realista', '¡Hey! ¿Qué hace una mini Rodríguez por aquí? ¡Atrápenla!'); await say(N, 'MG corre de vuelta al escondite entre los arbustos…'); await warp('campo', 2, 17, 'right', { skipEnter: true }); toast('Pista: dentro del maizal los soldados no te ven.', 5); };
+const SOLDADO_CAMPO_VE = async (e) => { await say('realista', '¡Hey! ¿Qué hace una mini Rodríguez por aquí? ¡Responde!'); await interrogatorio(e); toast('Pista: dentro del maizal los soldados no te ven.', 5); };
 const TEATRO = async () => {
   if (G.flags.teatro_ok) return;
   const r = findEnt('rodriguez'); if (r) face('rodriguez', 'mg');
   await say('rodriguez', '¡Llegaste, mini espía! Pero… ¿escuchas? Vienen más soldados. Tengo una idea: ¿te gustan las *obras de teatro*?');
   await say(N, 'Minutos después, en el sendero hay una «abuelita» (MG con un chal) y su «nieto» (Rodríguez, agachado, haciéndose el niño) recogiendo hierbas…');
-  spawn({ id: 'sold_t', sprite: 'realista', speaker: 'realista', x: 24, y: 11, dir: 'up', ghost: true }); await walk('sold_t', 'UUU', 4);
+  spawn({ id: 'sold_t', sprite: 'sanbruno', speaker: 'sanbruno', x: 24, y: 11, dir: 'up', ghost: true }); await walk('sold_t', 'UUU', 4);
   while (true) {
-    const i = await ask('¿Han visto pasar a Manuel Rodríguez?', ['¡Ay, mijito! Se fue por allá, hacia el río', '¡Está aquí mismo, agachado!', 'No sé quién es ese señor'], 'realista');
+    const i = await ask('¿Han visto pasar a Manuel Rodríguez?', ['¡Ay, mijito! Se fue por allá, hacia el río', '¡Está aquí mismo, agachado!', 'No sé quién es ese señor'], 'sanbruno');
     if (i === 0) { await say('mg', '¡Ay, mijito! ¿Manuel Rodríguez? ¡Ese pícaro pasó por aquí asustando a mis gallinas! Se fue por allá, hacia el río.'); break; }
     if (i === 1) { await say('rodriguez', '(¡Psst! ¡Así no, mini espía! ¡Inténtalo otra vez!)'); }
-    else { await say('realista', 'Mmm… ¿segura, abuelita? ¡Piénselo bien!'); }
+    else { await say('sanbruno', 'Mmm… ¿segura, abuelita? ¡Piénselo bien!'); }
   }
-  await say('realista', '¡Gracias, abuelita! ¡Al río, muchachos!');
+  await say('sanbruno', 'Mmm… Esa voz… ¡Yo te conozco! ¡Eres la niña del portón!');
+  await battle(OPPONENTS.sanbruno2);
+  await say('sanbruno', '¡Bah! ¡Al río, muchachos! ¡Rodríguez no se me escapa!');
   await walk('sold_t', 'DDD', 6); despawn('sold_t');
+  AUD.sfx('gallop');
+  await say('rodriguez', '¡Escucha! ¡Vuelven a caballo! ¡Súbete detrás de mí, mini espía, y agárrate fuerte!');
+  const r1 = await ride({ titulo: 'Huida con Manuel Rodríguez', jinete: 'b_rodriguez_mg_caballo', perseguidor: 'b_talavera_caballo', obst: ['b_roca', 'b_barril', 'b_arbusto', 'b_cerca'], cielo: ['#0e1430', '#2a3a6a'], suelo: 't_pasto_osc', montes: '#1a2444', noche: true, dur: 36 });
+  await say('rodriguez', r1.stars >= 8 ? `¡Ja, ja! ¡Los dejamos atrás! Y juntaste ${r1.stars} estrellas en el camino… ¡qué ojo de espía!` : '¡Ja, ja! ¡Los dejamos atrás! Esos Talaveras no conocen estos caminos como yo.');
+  { const p = G.player; p.x = 25; p.y = 6; p.px = 25 * 16; p.py = 6 * 16; p.dir = 'up'; const r = findEnt('rodriguez'); if (r) { r.x = 26; r.y = 6; r.px = 26 * 16; r.py = 6 * 16; r.dir = 'left'; } }
   await say('rodriguez', '¡Ja, ja! ¡Eres una espía natural! Ahora vamos a la cascada. Silba como un *chincol* tres veces… y verás.');
   setFlag('teatro_ok'); despawn('rodriguez');
   setObjective('Ir a la cascada (arriba a la derecha) y silbar como un chincol.');
@@ -684,13 +797,132 @@ const RODRIGUEZ_CUEVA = async () => {
   await say('mg', 'Esta vez sonrío. Sé que mi perro va tras los pasos de ese valiente colorín. ¡Es hora de cruzar mis propias montañas!');
   await say('rodriguez', 'Y tu máquina rara… mis amigos la trajeron escondida en una carreta de paja. ¡Nadie revisa las carretas de paja! Está ahí, al fondo.');
   setFlag('nave_cueva'); addProp('timemachine', 11, 7);
-  setFlag('dest1817'); setObjective('Viajar a Chillán, 1817, donde nació Bernardo O\'Higgins.');
+  setFlag('destAndes'); setObjective('Viajar a Mendoza, 1817, donde se prepara el Ejército de los Andes.');
+};
+
+// =================================================================== CAPÍTULO 5 · EL CRUCE DE LOS ANDES (1817)
+// Fuentes: Memoria Chilena w3-article-96742 y w3-article-3383 (cruce), w3-article-100852 (Chacabuco). Ver fuentes/memoria_chilena.md §13.
+const MENDOZA_ENTER = async () => {
+  if (!G.flags.llego_mendoza) {
+    setFlag('llego_mendoza'); await chapterOnce(4);
+    await say('mg', '¡Mendoza, enero de 1817! Al otro lado de la cordillera… Carpas, mulas, caballos ¡y martillazos por todas partes!');
+    await say(N, 'Desde fines de 1815, Mendoza se volvió un gran cuartel: arrieros, carros y yunques sonando día y noche.');
+    setObjective('Buscar al general San Martín, al centro del campamento.');
+  }
+};
+const SANMARTIN = async () => {
+  if (!G.flags.sanmartin_hablo) {
+    setFlag('sanmartin_hablo');
+    await say('sanmartin', '¿Una niña en el campamento? Soy *José de San Martín*, general del *Ejército de los Andes*.');
+    await say('mg', 'Busco a mi perro Nemo… y a Bernardo O\'Higgins.');
+    await say('sanmartin', 'Bernardo está aquí, preparando a sus soldados. Muchos patriotas llegaron a Mendoza después de Rancagua.');
+    await say('sanmartin', 'Somos más de 5.000 personas: unos *4.000 soldados*, más arrieros, herreros y baqueanos. Cruzaremos la cordillera en *seis columnas*, por distintos pasos entre Copiapó y Talca.');
+    await say('mg', '¿Seis columnas? ¡Así los soldados del Rey no saben por dónde van a llegar!');
+    await say('sanmartin', 'Exacto, pequeña. Ahora, nuestro arriero necesita ayuda con las mulas. ¿Le das una mano? Está junto a ellas.');
+    setObjective('Hablar con el arriero, junto a las mulas.');
+    return;
+  }
+  await say('sanmartin', G.flags.andes_cruzando ? '¡En marcha! La cordillera nos espera, por el camino del oeste.' : 'El arriero está junto a las mulas. Sin mulas no hay cruce.');
+};
+function nMulas() { return [1, 2, 3].filter(k => G.flags['mula' + k]).length; }
+const ARRIERO = async () => {
+  if (!G.flags.sanmartin_hablo) { await say('arriero', '¡Buenas, niñita! Si buscas al general, está al centro del campamento.'); return; }
+  if (!G.flags.arriero_hablo) {
+    setFlag('arriero_hablo');
+    await say('arriero', '¡Buenas, niñita! Soy arriero: conozco los caminos de la cordillera como la palma de mi mano.');
+    await say('arriero', 'De aquí salen *9.821 mulas* y *1.600 caballos*. ¡Casi diez mil mulas! Llevan comida, armas, frazadas… todo.');
+    await say('arriero', 'Ayúdame con estas tres: a una le toca el *charqui*, a otra las *frazadas* y a la última las *herraduras*. Las herraduras las tiene el herrero, junto a los yunques.');
+    setObjective('Cargar las mulas: habla con cada una (0/3).');
+    return;
+  }
+  const n = nMulas();
+  if (n < 3) { await say('arriero', `Van ${n} de 3. ¡Que no se nos haga de noche!`); return; }
+  if (!G.flags.mulas_ok) {
+    setFlag('mulas_ok');
+    await say('arriero', '¡Bien hecho! La recua está lista. ¡Escuche! Ya parten las primeras columnas…');
+    await PARTIDA_MENDOZA();
+    return;
+  }
+  await say('arriero', 'La senda sube por el oeste, a la izquierda. ¡Abríguese, niñita!');
+};
+const MULA = async (k) => {
+  if (!G.flags.arriero_hablo) { await say(N, 'Una mula tranquila mastica pasto. Parece esperar algo.'); return; }
+  if (G.flags['mula' + k]) { await say(N, '¡Esta mula ya está cargada!'); return; }
+  if (k === 3 && !hasItem('herraduras')) { await say(N, 'A esta mula le tocan las herraduras… pero las tiene el herrero, junto a los yunques.'); return; }
+  if (k === 3) takeItem('herraduras');
+  AUD.sfx('select'); setFlag('mula' + k);
+  await say(N, { 1: 'MG carga sacos de *charqui*: carne seca que no se echa a perder en el viaje.', 2: 'MG amarra *frazadas* gruesas. ¡Allá arriba el frío es terrible!', 3: 'MG guarda las *herraduras*: entre las piedras de la cordillera, los cascos se gastan muy rápido.' }[k]);
+  const n = nMulas(); setObjective(n < 3 ? `Cargar las mulas: habla con cada una (${n}/3).` : 'Avisarle al arriero que las mulas están listas.');
+};
+const HERRERO = async () => {
+  if (G.flags.herraduras_dadas) { await say('herrero', '¡Clang, clang! Herraduras, espadas, ruedas de cañón… aquí se hace de todo.'); return; }
+  await say('herrero', '¡Clang! ¡Clang! Perdón, niñita, no te escuché. En este campamento los yunques suenan día y noche.');
+  if (!G.flags.arriero_hablo) { await say('herrero', 'Si necesitas algo, pregúntale primero al arriero.'); return; }
+  await say('herrero', '¿Herraduras para las mulas? ¡Aquí tienes, recién hechas!');
+  setFlag('herraduras_dadas'); await giveItem('herraduras');
+};
+// MG ve pasar a lo lejos al jinete de capa azul, pero no lo alcanza: la reunión queda para Maipú
+const PARTIDA_MENDOZA = async () => {
+  AUD.sfx('gallop');
+  spawn({ id: 'jinete', horse: 'jinete', x: 12, y: 8, dir: 'left', ghost: true });
+  await say(N, 'Un jinete en un caballo blanco, con capa azul, encabeza una columna hacia la cordillera… ¡y detrás corre un perrito con un collar brillante!');
+  await say('mg', '¡El jinete del caballo blanco! ¡Y NEMO! ¡Espérenme!');
+  await walk('jinete', 'LLLLLLLLLLLL', 7); despawn('jinete');
+  face('sanmartin', 'mg');
+  await say('sanmartin', 'Va adelante con su columna, por el paso de *Los Patos*. Si quieres alcanzarlos, sube con la recua: allá arriba nos vas a hacer falta.');
+  setFlag('andes_cruzando'); setObjective('Subir a la cordillera por el camino del oeste (a la izquierda).');
+};
+const CORDILLERA_ENTER = async () => {
+  if (!G.flags.llego_cordillera) {
+    setFlag('llego_cordillera');
+    await say(N, 'La senda sube y sube entre rocas y nieve. El viento corta la cara y las mulas resoplan.');
+    await say('mg', '¡Brrr! La bitácora dice que O\'Higgins escribió que en el paso del *Espinacito* hacía «un frío intensísimo». ¡Tenía toda la razón!');
+    await say('arriero', '¡Niñita! Se cayeron bloques de nieve sobre la senda. Empújalos hasta los *huecos de la ladera* para que pase la recua.');
+    setObjective('Empujar los 3 bloques de nieve hasta los huecos de la ladera (marcas amarillas).');
+  }
+};
+const NIEVE_CHECK = async () => {
+  if (G.flags.senda_ok) return;
+  const marks = [[8, 7], [15, 7], [22, 7]];
+  const ok = ['n1', 'n2', 'n3'].every(id => { const p = G.props.find(q => q.opts.id === id); return p && marks.some(([x, y]) => p.x === x && p.y === y); });
+  if (!ok) return;
+  await sleep(300); AUD.sfx('correct'); setFlag('senda_ok');
+  await say('arriero', '¡Senda despejada! Ahora sí: ¡adelante la recua!');
+  removeProp('tapon1'); removeProp('tapon2');
+  await say(N, 'Al otro lado se ve el valle. ¡Chile está ahí abajo!');
+  await OLVIDO(2);
+  setObjective('Bajar hacia el valle por el oeste (a la izquierda), hasta Chacabuco.');
+};
+const ARRIERO_PASO = async () => {
+  if (G.flags.senda_ok) { await say('arriero', 'Con la senda limpia, la recua avanza tranquila. ¡Gracias, niñita!'); return; }
+  const i = await ask('¿Se trabaron los bloques de nieve?', ['Sí, ordénelos de nuevo', 'No, sigo intentando']);
+  if (i === 0) { await say('arriero', '¡A la una, a las dos… y a las tres!'); await warp('cordillera', 27, 9, 'left'); }
+  else await say('arriero', 'Empuja cada bloque caminando contra él: primero por la senda hasta quedar bajo el hueco, y después hacia arriba.');
+};
+const CHACABUCO = async () => {
+  await say(N, 'Después de muchos días de marcha, el ejército baja de la cordillera. Es el *12 de febrero de 1817*, cerca de la hacienda de *Chacabuco*.');
+  AUD.sfx('hit'); await flash('#fff', 200);
+  await say('arriero', '¡Niñita, súbase a esta mula! ¡Bajamos al trote, pero cuidado con las piedras que ruedan!');
+  const r2 = await ride({ titulo: '¡Bajando la cordillera!', jinete: 'b_mg_mula', perseguidor: null, obst: ['b_roca', 'b_bloque_nieve', 'b_roca'], cielo: ['#8ab8f0', '#e4f0ff'], suelo: 't_nieve', montes: '#6a7a98', nieve: true, dur: 30 });
+  if (r2.stars) toast(`¡Juntaste ${r2.stars} estrellas en la bajada!`, 3);
+  await say(N, '¡Las tropas del Rey esperan en el camino! ¡Bum! ¡Bum!');
+  await say('sgt_talavera', '¡Alto ahí! … ¡¿La niña de la Alameda?! ¡¿Cruzaste la cordillera con ellos?!');
+  await battle(OPPONENTS.chacabuco);
+  setFlag('chacabuco_ok');
+  await say(N, '¡Victoria! Las tropas del Rey se retiran. ¡Los patriotas triunfaron en Chacabuco!');
+  await card('Chacabuco, 1817', ['El *12 de febrero de 1817*, el Ejército de los Andes, con San Martín, O\'Higgins y Soler, triunfó en *Chacabuco*. Un día antes, Ramón Freire había recuperado Talca.', 'El *14 de febrero* el ejército entró a Santiago. El *16 de febrero*, un cabildo abierto nombró a *Bernardo O\'Higgins Director Supremo* de Chile.', 'De las 9.821 mulas que salieron de Mendoza, llegaron solo 4.330. ¡Cruzar los Andes fue una hazaña!'], [['12 feb', 'Chacabuco', true], ['16 feb', 'Director Supremo']]);
+  spawn({ id: 'sanmartin', sprite: 'sanmartin', speaker: 'sanmartin', x: 4, y: 12, dir: 'up', ghost: true, talk: 'Cruzamos la cordillera y ganamos en Chacabuco. Ahora Chile podrá gobernarse a sí mismo.' });
+  await say('sanmartin', '¡Gracias por ayudar a la recua, pequeña! Tu perrito siguió al jinete de capa azul… hacia el sur.');
+  await say('mg', 'La bitácora dice: «El jinete de las patillas colorinas nació en *Chillán*». ¡Nemo debe ir para allá!');
+  addProp('timemachine', 1, 12);
+  await say('mg', '¡Y mi nave apareció entre la nieve! ¡Vamos a Chillán!');
+  setFlag('dest1817'); setObjective('Usar la nave (abajo a la izquierda) y viajar a Chillán, 1817.');
 };
 
 // =================================================================== CAPÍTULO 4 · CHILLÁN 1817 Y MAIPÚ 1818
 const CHILLAN_ENTER = async () => {
   if (!G.flags.llego_chillan) {
-    setFlag('llego_chillan'); await chapterOnce(4);
+    setFlag('llego_chillan'); await chapterOnce(5);
     await say('mg', 'Chillán, 1817. Aquí nació Bernardo O\'Higgins. Hay una señora parada sobre una banca, ¡en el centro de la plaza!');
     setObjective('Hablar con la señora de la plaza.');
   }
@@ -708,6 +940,10 @@ const CORNELIA = async () => {
   const n = [1, 2, 3].filter(k => G.flags['conv' + k]).length;
   if (n < 3) { await say('cornelia', `Vinieron ${n} de 3. ¡Sigue, pequeña! Una voz sola es valiente; muchas voces juntas son imparables.`); return; }
   if (G.flags.medalla_cornelia) { await say('cornelia', '¡Viva la patria, pequeña! Ve tras tu perrito.'); return; }
+  if (!G.flags.duelo_soldado1817) {
+    await say('sgt_talavera', '¡Alto ahí! ¡En esta plaza nadie habla de libertad! … ¡¿Tú?! ¿Hasta Chillán me sigues, niña?');
+    await battle(OPPONENTS.soldado1817); setFlag('duelo_soldado1817');
+  }
   await say(N, 'Los vecinos se juntan alrededor de la banca. Doña Cornelia alza la voz…');
   await say('cornelia', '¡Vecinos! No tengan miedo. Los patriotas cruzaron la cordillera y vuelven a liberar Chile. ¡Ayudémoslos con nuestro ánimo, con pan, con caballos y con valor!');
   await say(N, '¡Los vecinos aplauden! Hasta el soldado realista se rasca la cabeza, sin saber qué hacer.');
@@ -741,7 +977,7 @@ const CONVENCER = async (k) => {
 };
 const MAIPU_ENTER = async () => {
   if (!G.flags.llego_maipu) {
-    setFlag('llego_maipu'); await chapterOnce(5);
+    setFlag('llego_maipu'); await chapterOnce(6);
     await say('mg', '¡Un campamento! Carpas, fogatas, cañones… y la bandera de la estrella solitaria flameando por todas partes.');
     await say('mg', 'Es el 5 de abril de 1818, el día de la Batalla de Maipú. Tengo que encontrar a Nemo… y a Ramón Freire, el del gran bigote.');
     setObjective('Pasar el control del sargento y buscar a Ramón Freire (al norte).');
@@ -756,6 +992,7 @@ const FREIRE = async () => {
   if (!G.flags.freire_hablo) {
     setFlag('freire_hablo'); meet('freire');
     await say('freire', '¡Ramón Freire, para servirle! ¿Una niña en el campamento? ¡Qué valiente! Pero llegas en un mal momento…');
+    await card('Antes de Maipú (1818)', ['El *Acta de la Independencia* se firmó en *Concepción*, con fecha 1 de enero de 1818: Chile queda «para siempre separado de la monarquía de España».', 'El *12 de febrero* se juró: Bernardo en *Talca*, y en Santiago se lanzaron medallas al pueblo.', 'Pero el *19 de marzo*, en *Cancha Rayada*, los realistas sorprendieron de madrugada al ejército patriota. Doña *Paula Jaraquemada* recibió a los soldados en su hacienda de Paine. Cuando un capitán realista le pidió las llaves de la bodega, ella le mostró el brasero: «Yo sola mando aquí».'], [['1 ene', 'Acta', true], ['19 mar', 'Cancha Rayada'], ['5 abr', 'Maipú']]);
     await say('freire', '¡Perdí mi bandera! Un perrito con un collar brillante se la llevó jugando hacia el sur del campamento.');
     await say('mg', '¡Ese es Nemo! ¡Yo la busco!');
     setFlag('buscar_bandera'); setObjective('Buscar la bandera de Freire (sigue el rastro brillante, al suroeste).');
@@ -766,7 +1003,14 @@ const FREIRE = async () => {
   if (!G.flags.medalla_freire) {
     takeItem('bandera');
     await say('freire', '¡Mi bandera! ¡Gracias, pequeña! Con ella a mi lado, nada nos detiene.');
-    await card('Un año muy importante: 1818', ['El 12 de febrero de 1818 se proclamó la *Independencia de Chile*. ¡Ya no somos parte del Reino de España!', 'El *5 de abril de 1818*, en los llanos de Maipú, el ejército patriota triunfó y aseguró la Independencia.', 'Ramón Freire fue uno de los valientes de Maipú. Y al final de la batalla pasó algo muy emocionante…'], [['1817', 'Chacabuco'], ['1818', 'Independencia', true], ['1818', 'Maipú', true]]);
+    if (!G.flags.duelo_osorio) {
+      AUD.sfx('hit'); await flash('#fff', 200);
+      await say(N, '¡Bum! ¡Bum! Suenan los cañones. Las tropas del general *Mariano Osorio* avanzan por los cerrillos de Maipú.');
+      await say('freire', '¡Pequeña, ayúdanos con tus ideas mientras cargamos! ¡Adelante!');
+      await battle(OPPONENTS.osorio); setFlag('duelo_osorio');
+      await say(N, 'Las tropas realistas retroceden. ¡Los patriotas ganaron la Batalla de Maipú!');
+    }
+    await card('Un año muy importante: 1818', ['El *Acta de la Independencia* se firmó en *Concepción*, con fecha 1 de enero de 1818. El 12 de febrero se juró: Bernardo en Talca, y en Santiago se lanzaron medallas al pueblo. ¡Chile ya no es parte de la monarquía de España!', 'El *5 de abril de 1818*, en los llanos de Maipú, el ejército patriota triunfó y aseguró la Independencia.', 'Ramón Freire fue uno de los valientes de Maipú. Y al final de la batalla pasó algo muy emocionante…'], [['1817', 'Chacabuco'], ['1818', 'Independencia', true], ['1818', 'Maipú', true]]);
     AUD.play('independencia');
     spawn({ id: 'sanmartin', sprite: 'sanmartin', speaker: 'sanmartin', x: 33, y: 9, dir: 'left', ghost: true }); spawn({ id: 'ohiggins', sprite: 'ohiggins', speaker: 'ohiggins', x: 19, y: 13, dir: 'up', ghost: true, talk: () => OHIGGINS_MAIPU() });
     await say(N, '¡Llegan dos generales!');
@@ -803,7 +1047,7 @@ const OHIGGINS_MAIPU = async () => {
 // =================================================================== CAPÍTULO 5 · SANTIAGO 1823
 const STGO1823_ENTER = async () => {
   if (!G.flags.llego_1823) {
-    setFlag('llego_1823'); await chapterOnce(6);
+    setFlag('llego_1823'); await chapterOnce(7);
     await say('mg', '¡Este Santiago es completamente diferente! Niños entrando a escuelas con libros bajo el brazo… ¡y la bandera nueva con la estrella solitaria!');
     await say('mg', 'Es como si Chile fuera un niño que creció: en 1810 usaba pañales, en 1814 gateaba… ¡y ahora aprende a caminar solito!');
     setObjective('Seguir el sonido del piano: la casa del noreste de la plaza.');
@@ -826,7 +1070,7 @@ const CASA_OH_ENTER = async () => {
 const MUSEO = async (k) => {
   const T = {
     silla: ['Una silla de montar con marcas de batalla.', 'ohiggins', 'Con esta silla crucé la cordillera junto a miles de valientes. Hacía tanto frío que hasta las palabras se congelaban.'],
-    pluma: ['Una pluma dorada en una caja de cristal.', 'ohiggins', 'Con esta pluma firmamos la Independencia. Cada letra estaba llena de los sueños de miles de personas.'],
+    pluma: ['Una pluma dorada en una caja de cristal.', 'ohiggins', 'Con esta pluma firmé el Acta de la Independencia, en Concepción. Cada letra estaba llena de los sueños de miles de personas.'],
     tabla: ['Una vieja tabla de madera con marcas de agua.', 'ohiggins', 'Es de un barco de la Escuadra Libertadora. El comandante Cochrane, un marino valiente como un león, nos ayudó a liberar a nuestros vecinos del Perú.'],
     constitucion: ['Un papel con letras grandes: «Constitución».', 'ohiggins', 'De este papel depende cómo nos gobernamos y organizamos. Impide que otros te quiten lo que es tuyo o tu libertad.'],
     cuadro: ['Un cuadro de Bernardo con sus amigos. Reconoces a José de San Martín y a Manuel Rodríguez.', 'ohiggins', 'Este cuadro me recuerda que ninguna victoria es obra de una sola persona.']
@@ -849,19 +1093,21 @@ const OHIGGINS_CASA = async () => {
   }
   const seen = ['silla', 'pluma', 'tabla', 'constitucion', 'cuadro'].filter(k => G.flags['museo_' + k]).length;
   if (seen < 3) { await say('ohiggins', `Mira mis recuerdos: la silla de montar, la pluma, la tabla del barco, el cuadro, la Constitución… (has visto ${seen} de 5; mira al menos 3).`); return; }
-  await say('ohiggins', 'Hoy tendré que tomar una decisión muy difícil. ¿Les gustaría a ti y a Nemo acompañarme a un *Cabildo*?');
-  await say('mg', '¡CHISPAS! ¡El Cabildo! Allí conocí a don Mateo. ¡Todo termina en el mismo lugar!');
+  await say('ohiggins', 'Hoy tendré que tomar una decisión muy difícil. ¿Les gustaría a ti y a Nemo acompañarme al *Real Consulado*?');
+  await say('mg', '¡CHISPAS! ¡El Real Consulado! Allí conocí a don Mateo. ¡Todo termina en el mismo lugar!');
   setFlag('visita_cabildo23');
   await warp('cabildo1823', 11, 13, 'up');
 };
 const CABILDO23_ENTER = async () => {
   if (G.flags.medalla_ohiggins) return;
-  await say(N, 'El Cabildo está repleto: militares con medallas que tintinean, señores con levitas negras… La gente susurra, nerviosa.');
-  await say(N, 'Bernardo camina hasta el centro, frente a la misma mesa donde don Mateo comenzó todo, hace trece años.');
-  await say('ohiggins', 'He aquí mi pecho. Si he cometido errores, han sido por mi amor a Chile. Ahora dejo el mando de nuestra nación, para que otros continúen el camino que tantos ayudamos a construir.');
+  await say(N, 'El salón del Consulado está repleto: militares con medallas que tintinean, señores con levitas negras… La gente susurra, nerviosa.');
+  await say(N, 'Hay mucha tensión: el general Freire viene marchando desde Concepción y muchos vecinos le piden a Bernardo que deje el mando.');
+  await say(N, 'Bernardo camina hasta el centro, frente a la misma mesa donde don Mateo comenzó todo, hace trece años. Se quita la banda tricolor y se abre la casaca.');
+  await say('ohiggins', 'Me voy con el consuelo de dejar a Chile independiente de toda dominación extranjera. Si alguien quiere acusarme, no me defenderé: ¡aquí está mi pecho!');
+  await say('ohiggins', 'Dejo el mando a una Junta, para que otros continúen el camino que tantos ayudamos a construir.');
   await say(N, 'Hay gritos, discusiones, aplausos… y algunos lloran. Es el 28 de enero de 1823.');
   const i = await ask('MG piensa en todo lo que aprendió… ¿Qué está haciendo Bernardo?', ['Está poniendo el bien de todos por sobre su poder', 'Se está rindiendo', 'Se va de vacaciones']);
-  if (i !== 0) await say('mg', 'No… no se está rindiendo. Está haciendo algo mucho más valiente: poner el bienestar de todos por encima de su propio poder.');
+  if (i !== 0) await say('mg', 'No… no se está rindiendo. Lo presionaron mucho, pero eligió no pelear contra su propia gente: puso el bienestar de todos por encima de su poder.');
   else await say('mg', '¡Eso es! A veces amar significa saber cuándo dar un paso al costado para que otros puedan avanzar.');
   await say('mg', '«Este pequeño y colorín fundador en nuestro gran líder se convirtió… ¡Gran amante de nuestra tierra! Este pequeño fundador “Viva Chile” exclamó».');
   face('ohiggins', 'mg');
@@ -878,7 +1124,7 @@ const CABILDO23_ENTER = async () => {
 // =================================================================== CAPÍTULO 6 · VALPARAÍSO 1832
 const VALPO_ENTER = async () => {
   if (!G.flags.llego_valpo) {
-    setFlag('llego_valpo'); await chapterOnce(7);
+    setFlag('llego_valpo'); await chapterOnce(8);
     await say('mg', '¡El mar! Barcos enormes, gaviotas, y casas de todos colores subiendo por los cerros. ¡Valparaíso!');
     setObjective('Buscar la oficina de don Diego Portales (puerta café, al centro).');
   }
@@ -905,28 +1151,98 @@ const DOCE = async () => {
   const n = G.ents.find(e => e.id === 'nemo'); if (n) { AUD.sfx('bark'); face('nemo', 'mg'); }
   nemoJoin(); setFlag('nemo_final');
   await say('mg', 'Esta vez no desapareces, ¿verdad, Nemo? Ya conociste a todos… ¡y yo también!');
-  await say('mg', 'En la última página de la bitácora apareció algo escrito: «La nave ya puede llevarlos de vuelta a casa».');
-  setObjective('Volver a casa con Nemo: la nave está en el muelle.');
+  await say('mg', 'En la última página de la bitácora apareció un mapa nuevo: «Cerro Huelén, el *Mirador del Tiempo*. Te espero en la cumbre». ¡Es la letra de mi tío!');
+  setObjective('Viajar en la nave (en el muelle) al Cerro Huelén, el Mirador del Tiempo.');
 };
-const FINAL_ANTES = async () => {
-  await say('mg', '¿Volvemos a casa, Nemo? … ¡A casa!');
-  G.busy++; AUD.sfx('warp'); await flash('#fff', 500);
-  G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.label = ''; TRAVEL.dest = ''; AUD.play('tiempo'); await sleep(2200);
-  AUD.play('final'); await shake(600);
-  G.scene = 'travel';
-  await say(N, '¡De repente, el remolino se pone oscuro y las páginas del libro empiezan a volar…!', { style: 'dark' });
-  await say('olvido', 'Ji, ji, ji… ¿Creías que podías volver tan fácil? Yo soy *El Olvido*. Me como las historias que nadie recuerda.', { style: 'dark' });
-  await say('mg', '¡No! ¡Mis amigos fundadores no se van a borrar! ¡Yo me acuerdo de todos!', { style: 'dark' });
-  G.busy--;
+// =================================================================== CAPÍTULO 9 · EL MIRADOR DEL TIEMPO
+const MONTE_ENTER = async () => {
+  if (G.flags.llego_monte) return;
+  setFlag('llego_monte'); await chapterOnce(9);
+  await say('mg', 'El Cerro Huelén… Desde aquí se ve Santiago entero. Y allá arriba, en la cumbre, ¡hay una luz con forma de sombrero!');
+  await say(N, 'Un letrero dice: «Camino de la Victoria. Cuatro pasos, cuatro guardianes». Para pasar tendrás que usar los *poderes* de tus medallas.');
+  setObjective('Subir el Camino de la Victoria hasta la cumbre.');
+};
+const OBSTACULOS = {
+  1: { flag: 'obs1', ent: 'centinela', texto: 'Un centinela de Talavera vigila el paso. Si te reconoce, no te dejará subir.', ok: ['disfraz'], exito: 'MG se pone el disfraz de abuelita de Manuel Rodríguez. «Buenas tardes, mijito». ¡El centinela se aparta, muy educado!', pista: 'Manuel Rodríguez engañaba a los soldados disfrazándose.' },
+  2: { flag: 'obs2', prop: 'porton', texto: 'Un portón con un candado musical. Tiene cuatro cuerdas, como una guitarra.', ok: ['melodia'], exito: 'MG tararea la melodía secreta de doña Luisa… ¡clic! El portón se abre.', pista: 'Doña Luisa usaba una melodía secreta para reconocer a los amigos.' },
+  3: { flag: 'obs3', prop: 'derrumbe', texto: 'Un derrumbe de rocas tapa el camino. ¡Pesan demasiado para una sola persona!', ok: ['junta'], exito: 'MG recuerda el Cabildo abierto: ¡juntos se puede! Los vecinos de 1810 aparecen como un recuerdo de luz y mueven las rocas.', pista: 'Don Mateo reunió a muchos vecinos para decidir juntos.' },
+  4: { flag: 'obs4', ent: 'niebla', texto: 'Una niebla gris y fría: la *niebla del olvido*. No se ve nada del camino.', ok: ['saber', 'pluma'], exito: 'Las páginas del libro brillan como una lámpara. ¡La niebla retrocede!', pista: 'Don Manuel de Salas decía que la educación ilumina.' }
+};
+const OBSTACULO = async (k) => {
+  const o = OBSTACULOS[k]; if (G.flags[o.flag]) return;
+  if (k > 1 && !G.flags['rey' + (k - 1)]) return;
+  await say(N, o.texto);
+  const good = POWERS.find(p => p.id === o.ok[0]);
+  const others = shuffle(POWERS.filter(p => !o.ok.includes(p.id) && G.medals.includes(p.medal))).slice(0, 2);
+  const opts = shuffle([good, ...others]);
+  const i = await ask('¿Qué poder usarás?', opts.map(p => `${p.name} (${FOUNDERS.find(f => f.id === p.medal).short})`).concat(['Pensarlo mejor']), null, { cancel: true });
+  if (i < 0 || i >= opts.length) return;
+  if (!o.ok.includes(opts[i].id)) { AUD.sfx('wrong'); await say('mg', `(Mmm… ${opts[i].name} no sirve aquí. ¡Piensa otra vez!)`); toast('Pista: ' + o.pista, 5); return; }
+  AUD.sfx('heal'); await flash(opts[i].col || '#ffe680', 400);
+  await say(N, o.exito);
+  setFlag(o.flag);
+  if (o.ent) despawn(o.ent); if (o.prop) removeProp(o.prop);
+  setObjective(`Subir el Camino de la Victoria (${k} de 4 pasos abiertos).`);
+};
+const REYES = {
+  1: { opp: 'rey1', id: 'rey1', who: 'sgt_talavera', a: '¡Alto, niña! Los Cuatro del Rey cuidamos este cerro. Soy el primero: ¡el Sargento de Talavera! ¿Creías que te habías librado de mí?', b: '¡Uf! Pasa… pero arriba te espera alguien más elegante que yo.' },
+  2: { opp: 'rey2', id: 'rey2', who: 'marco', a: '¡Oh, la niña de los fundadores! Soy el segundo de los Cuatro del Rey. ¿Te gustan mis encajes nuevos?', b: '¡Mis encajes! Está bien, está bien… pasa. Osorio no será tan amable.' },
+  3: { opp: 'rey3', id: 'rey3', who: 'osorio', a: 'Me venciste en Maipú, pero aquí arriba el tiempo es otro. ¡Soy el tercero de los Cuatro del Rey!', b: 'Otra vez derrotado… Sube, si te atreves. El último guardián te conoce bien.' },
+  4: { opp: 'rey4', id: 'rey4', who: 'sanbruno', a: '¡Nos volvemos a ver, niña del portón! Soy el último de los Cuatro del Rey… y esta vez mi jefe me está mirando.', b: '¡Imposible! ¡Cuatro de cuatro! Mi jefe… mi jefe no te va a perdonar.' }
+};
+const REY = async (k) => {
+  const r = REYES[k]; if (G.flags[r.id]) return;
+  if (!G.flags['obs' + k]) return;
+  face(r.id, 'mg');
+  await say(r.who, r.a);
+  await battle(OPPONENTS[r.opp]);
+  await say(r.who, r.b);
+  setFlag(r.id); despawn(r.id);
+  setObjective(k < 4 ? `Subir el Camino de la Victoria (${k} de 4 guardianes vencidos).` : 'Llegar a la cumbre del cerro.');
+};
+const REVELACION = async () => {
+  if (G.flags.monte_final) return;
+  AUD.play('final');
+  { const t = findEnt('tio'); if (t) { t.x = 11; t.y = 2; t.px = 176; t.py = 32; t.dir = 'down'; t.jaula = true; } }   // el tío, en su jaula, detrás del villano (más atrás para que se vea sobre él)
+  G.camFocus = { x: 11.5, z: 4.6 };   // la cámara encuadra al villano al medio, con el tío detrás
+  await say('mg', '¡TÍO! ¿Eres tú? ¡Te encontré!');
+  await say(N, 'El tío está atrapado en la jaula de sombras de la visión. Delante de él, la figura encapuchada que MG ya conoce se ríe.');
+  spawn({ id: 'sombra', sprite: 'olvido', speaker: 'olvido', x: 11, y: 5, dir: 'down', ghost: true });
+  await say('olvido', 'Ji, ji… ¡Nos volvemos a ver, niña! Esta es mi última oportunidad: si nadie recuerda a tus fundadores, se borrarán para siempre.');
+  await say('mg', '¡Ya te gané tres veces, Olvido! ¡Suelta a mi tío!');
   await battle(OPPONENTS.olvido);
-  G.busy++;
-  await say(N, 'El Olvido se deshace como humo. Las doce páginas vuelven a brillar, más fuertes que nunca. ¡Las firmas de los fundadores relucen como estrellas!', { style: 'dark' });
-  G.busy--;
-  return true;
+  AUD.sfx('hit'); await shake(500);
+  await say(N, 'El Olvido se retuerce… ¡y crece! Una corona dorada aparece sobre la capucha.');
+  despawn('sombra'); spawn({ id: 'espiritu', sprite: 'espiritu', speaker: 'espiritu', x: 11, y: 5, dir: 'down', ghost: true });
+  await say('mg', '(¡La corona de mis visiones!)');
+  await say('espiritu', 'El Olvido era solo mi sombra. Yo soy el *Espíritu Realista*. Quiero que Chile olvide su independencia, sus virtudes y sus tradiciones… ¡para cambiar su historia!');
+  await say('mg', '¡No lo voy a permitir! ¡Yo me acuerdo de todos!');
+  await battle(OPPONENTS.espiritu);
+  await say('espiritu', '¡Esto no ha terminado, niña! Hay muchos otros momentos de la historia que puedo cambiar… ¡Nos veremos!');
+  AUD.sfx('warp'); await flash('#2a0a1a', 500); despawn('espiritu'); setFlag('espiritu_escapo');
+  await TIO_DESPEDIDA();
 };
-DESTS[0].after = async () => ENDING();
+const TIO_DESPEDIDA = async () => {
+  AUD.play('piano');
+  face('tio', 'mg');
+  await say(N, 'La jaula se deshace. El tío brilla con una luz suave; su sombrero todavía le tapa los ojos.');
+  { const t = findEnt('tio'); if (t) { t.jaula = false; sparkleAt(t.x, t.y, 30); t.ghost = true; await walk('tio', 'DDD', 2.5); face('tio', 'mg'); } }   // baja flotando hasta MG
+  G.camFocus = { x: 11.5, z: 5.2 };
+  await say('mg', '¡Tío! Ahora podemos volver todos juntos a casa.');
+  await say('tio', 'MG, mi niña valiente… Escúchame con calma. Yo ya no puedo volver contigo.');
+  await say('tio', 'Hace un tiempo me fui de este mundo. Por eso solo me recuerdas el día de tu cumpleaños, cuando te regalé el libro.');
+  await say('tio', 'El libro y la bitácora son mi forma de seguir acompañándote. Vivo en cada página, y en cada historia que tú recuerdes.');
+  await say('tio', 'El Espíritu Realista quiere que Chile olvide su pasado. Tú eres la única que puede protegerlo y mantener vivas sus virtudes y tradiciones.');
+  await say('tio', 'Ya sabes viajar en el tiempo. Vuelve a casa, abraza a tu familia… y después sigue viajando: hay muchas otras figuras de nuestra historia que conocer.');
+  await say('tio', 'Ahora es nuestro turno de trabajar por ese sueño. ¡Viva Chile!');
+  await emote('mg', '♥', 900);
+  await say(N, 'La luz del tío se vuelve mil estrellitas que entran en el libro. En la última página aparece un dibujo nuevo: un sombrero y una sonrisa.');
+  despawn('tio'); setFlag('monte_final'); G.tint = null; G.camFocus = null;
+  await say('mg', 'Te lo prometo, tío. ¡Viva Chile! … Nemo, ¡vamos a casa!');
+  await timeTravel({ label: 'Hoy · Casa de MG', year: 'HOY', map: 'casa_lab', x: 6, y: 5, dir: 'down', after: () => ENDING() });
+};
 const ENDING = async () => {
-  await sleep(300); await chapterOnce(8);
+  await sleep(300); await chapterOnce(10);
   await say(N, '¡FLASH! El sol entra por la ventana del laboratorio igual que cuando se fue… como si el tiempo no hubiera pasado.');
   spawn({ id: 'mama', sprite: 'mama', x: 4, y: 7, dir: 'up', speaker: 'mama' }); spawn({ id: 'papa', sprite: 'papa', x: 9, y: 7, dir: 'up', speaker: 'papa' }); spawn({ id: 'max', sprite: 'max', x: 11, y: 8, dir: 'left', speaker: 'max' });
   await say('mama', '¡MG!'); await say('papa', '¡MG! ¡Y Nemo!');
@@ -940,6 +1256,7 @@ const ENDING = async () => {
   await say('mg', 'Tomé un lápiz y, justo después del mensaje de mi tío, escribí mi propio poema para Chile:');
   await letter('Mi querido Chile', 'Mi querido Chile es como un jardín | que entre todos debemos cuidar, | con montañas que tocan el cielo | y un mar que nos invita a soñar. | Los valientes que un día lucharon | nos dejaron un regalo especial: | la tarea de hacer de esta tierra | un lugar donde podamos libres amar.', 'MG');
   await say('mg', 'Al final, eso es lo que aprendí de mis amigos fundadores: que la libertad es como una plantita que hay que regar todos los días… y que cada uno de nosotros, sin importar lo pequeños que seamos, puede ayudar a que crezca fuerte.');
+  await say('mg', '(Mi tío ya no está, pero cada vez que abro el libro lo siento cerca. Y el Espíritu Realista escapó… Menos mal que ya sé viajar en el tiempo.)');
   setFlag('fin'); G.follower = null; setFlag('nemo_sigue', false); G.outfit = 'mg_casa'; G.player.sprite = 'mg_casa';
   saveGame();
   await fadeOut('#000', 800);
@@ -947,6 +1264,90 @@ const ENDING = async () => {
   await new Promise(r => CRED.done = r);
   await fadeOut('#000', 600);
   G.scene = 'world'; enterMap('casa_living', 9, 6, 'down'); await fadeIn(600);
-  await say(N, '¡Gracias por jugar! Puedes seguir explorando: la nave del laboratorio te lleva a visitar a tus amigos fundadores cuando quieras. Y el libro ya tiene las doce firmas.');
-  setObjective('¡Aventura completa! Visita a los fundadores cuando quieras.', true);
+  await say(N, '¡Gracias por jugar! La nave del laboratorio te lleva a visitar a tus amigos fundadores cuando quieras. *MG volverá*: el Espíritu Realista prepara un plan todavía mayor…');
+  setObjective('¡Aventura completa! Visita a los fundadores cuando quieras. MG volverá…', true);
 };
+
+// =================================================================== EL OLVIDO ANTES DEL FINAL Y LOS PRESAGIOS
+// El Olvido aparece en 1810 (al volver a la nave), en la cordillera (al despejar la senda) y en 1823 (al volver a la nave).
+// Tras cada derrota el libro muestra un presagio: MG no entiende todavía, pero sabe que algo pasa con su tío.
+async function vision(figs, lines) {
+  const t0 = G.t; let t1 = null;
+  const L = {
+    draw(c) {
+      const a = Math.min(1, (G.t - t0) / 0.8) * (t1 === null ? 1 : Math.max(0, 1 - (G.t - t1) / 0.5));
+      const cx = W / 2, cy = 92, r = 84 * (0.6 + 0.4 * a);
+      c.save(); c.globalAlpha = a * 0.82; c.fillStyle = '#120a1e'; c.fillRect(0, 0, W, H); c.globalAlpha = a;
+      // la visión aparece dentro de un círculo que respira, como una página que se abre
+      c.save(); c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.clip();
+      const bg = IMG.bf_espiritu; if (bg) { c.filter = 'saturate(0.55) brightness(0.75)'; c.drawImage(bg, cx - r * 1.6 + Math.sin(G.t * 0.4) * 4, cy - r, r * 3.2, r * 2.1); c.filter = 'none'; }
+      c.fillStyle = 'rgba(70,40,110,0.35)'; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+      for (const f of figs) {
+        const im = IMG[f.img] || (f.alt && IMG[f.alt]); if (!im) continue;
+        const h = f.h, w = h * im.width / im.height, x = cx + (f.x || 0) - w / 2, y = cy + r * 0.78 + (f.y || 0) - h + Math.sin(G.t * 1.5 + (f.x || 0)) * 2;
+        c.save(); c.globalAlpha = a * (f.alpha ?? 1); if (f.dark) c.filter = 'brightness(0.42) saturate(1.3) contrast(1.15)';
+        c.drawImage(im, x, y, w, h); c.restore();
+        if (f.cage) { c.save(); c.globalAlpha = a * 0.9; c.strokeStyle = '#2a0e3a'; c.lineWidth = 2.2; for (let i = 0; i <= 5; i++) { const bx = x - 4 + i * (w + 8) / 5; c.beginPath(); c.moveTo(bx, y - 6); c.lineTo(bx, y + h); c.stroke(); }
+          c.strokeStyle = 'rgba(190,120,255,0.55)'; c.lineWidth = 1; c.strokeRect(x - 4, y - 6, w + 8, h + 6); c.restore(); }
+      }
+      // niebla que se arremolina
+      for (let i = 0; i < 14; i++) { const k = G.t * 0.3 + i * 1.37, rr = r * (0.7 + 0.3 * ((i * 37) % 10) / 10), fx = cx + Math.cos(k) * rr, fy = cy + Math.sin(k * 1.3) * rr * 0.75, fr = 22 + (i % 4) * 8;
+        const g = c.createRadialGradient(fx, fy, 0, fx, fy, fr); g.addColorStop(0, i % 3 ? 'rgba(200,184,232,0.22)' : 'rgba(138,106,200,0.25)'); g.addColorStop(1, 'rgba(138,106,200,0)');
+        c.globalAlpha = a; c.fillStyle = g; c.fillRect(fx - fr, fy - fr, fr * 2, fr * 2); }
+      c.restore();
+      c.globalAlpha = a; c.strokeStyle = 'rgba(200,160,255,0.85)'; c.lineWidth = 2.5; c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+      c.strokeStyle = 'rgba(255,220,140,0.35)'; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, r + 4 + Math.sin(G.t * 3) * 1.5, 0, Math.PI * 2); c.stroke();
+      c.restore();
+    }
+  };
+  const done = UI.push(L);
+  AUD.sfx('warp'); await sleep(700);
+  for (const [who, text] of lines) await say(who, text);
+  t1 = G.t; await sleep(500); L.resolve(); await done;
+}
+const PRESAGIOS = {
+  1: () => vision([{ img: 'v_espiritu', h: 128, alpha: 0.75, dark: true }],
+    [[N, 'Mientras la niebla se va, el libro se abre solo. En una página en blanco aparece algo por un instante…'],
+     [N, 'Un cerro con un mirador… y encima, una sombra enorme con una *corona*.'],
+     ['mg', '(¿Qué fue eso? El Olvido dijo «mi amo»… ¿Quién será? … Seguro me lo imaginé.)']]),
+  2: () => vision([{ img: 'v_espiritu', h: 124, x: -46, alpha: 0.9, dark: true }, { img: 'c_tio_frente', alt: 'r_tio', h: 92, x: 54, cage: true }],
+    [[N, 'La nieve se arremolina y forma una imagen dentro del libro…'],
+     ['corona', 'Mi sombra perdió otra vez… No importa, niña. Yo tengo algo que tú quieres.'],
+     ['tio', '¡MG! … ¡No… olvides…!'],
+     ['mg', '¡¿TÍO?! ¡TÍO!'],
+     [N, 'La imagen se apaga. MG no entiende nada… pero ahora sabe que algo le pasa a su tío.'],
+     ['mg', '(Mi tío, encerrado en una jaula de sombras… Tengo que seguir. Cada fundador que recuerdo me acerca a él.)']]),
+  3: () => vision([{ img: 'v_espiritu', h: 150, y: -6, alpha: 0.55, dark: true }, { img: 'c_tio_frente', alt: 'r_tio', h: 50, y: -58, cage: true },
+    { img: 'v_talavera', h: 44, x: -64, y: -22 }, { img: 'v_marco', h: 44, x: -32, y: -14 }, { img: 'v_osorio', h: 44, x: 32, y: -14 }, { img: 'v_sanbruno', h: 44, x: 64, y: -22 }],
+    [[N, 'El libro tiembla. En la página en blanco aparece un cerro con un camino en zigzag…'],
+     [N, 'Cuatro guardianes en el camino. En la cumbre, una jaula… y sobre ella, la sombra de la corona.'],
+     ['corona', 'Cuando tengas todas tus medallitas, sube a mi Mirador del Tiempo. Te estaré esperando… con tu tío.'],
+     ['mg', '(Un cerro, cuatro guardianes y mi tío. Ya no tengo miedo: cuando tenga las doce medallas, ¡iré a buscarlo!)']])
+};
+const OLVIDO_TEXTOS = {
+  1: [[N, 'De la nave sale una niebla gris… y de la niebla, una figura encapuchada que se ríe bajito.'],
+      ['olvido', 'Ji, ji… ¿Así que tú eres la niña que anda recordando a todo el mundo? Yo soy *El Olvido*. Lo que nadie recuerda… ¡yo lo borro!'],
+      ['mg', '¡Las páginas de don Mateo y don Manuel se están poniendo grises! ¡Suéltalas!']],
+  2: [[N, 'De pronto, la niebla baja de las cumbres… y se ríe.'],
+      ['olvido', '¡Ji, ji! ¿Me extrañaste? Aquí arriba, con tanto frío, todos olvidan para qué caminan.'],
+      ['mg', '¡Tú otra vez! ¡No vas a borrar el Cruce de los Andes!']],
+  3: [[N, 'Cuando MG se acerca a la nave, la plaza se pone gris, como una foto vieja.'],
+      ['olvido', 'Ji, ji… Bernardo dejó el mando. En unos años, ¿quién se acordará de él?'],
+      ['mg', '¡Yo me voy a acordar! ¡Y todos los que lean mi libro!']]
+};
+async function OLVIDO(k) {
+  if (G.flags['olvido' + k]) return;
+  const p = G.player; AUD.sfx('warp'); await flash('#3a2a5a', 300);
+  spawn({ id: 'sombra' + k, sprite: 'olvido', speaker: 'olvido', x: p.x, y: Math.max(1, p.y - 2), dir: 'down', ghost: true });
+  face('mg', 'up');
+  for (const [who, text] of OLVIDO_TEXTOS[k]) await say(who, text);
+  await battle(OPPONENTS['olvido' + k]);
+  setFlag('olvido' + k); AUD.sfx('warp'); await flash('#2a0a1a', 300); despawn('sombra' + k);
+  await PRESAGIOS[k]();
+}
+// la nave: en 1810 y 1823 El Olvido sale a cortar el paso antes del viaje (devuelve true si hubo encuentro)
+async function olvidoEnLaNave() {
+  const k = G.mapId === 'stgo1810' && G.flags.dest1814 && !G.flags.olvido1 ? 1 : G.mapId === 'stgo1823' && G.flags.dest1832 && !G.flags.olvido3 ? 3 : 0;
+  if (!k) return false;
+  await OLVIDO(k); return true;
+}

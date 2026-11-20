@@ -18,7 +18,7 @@ const IMG = {};
 // --------------------------------------------------------------- canvas
 const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
-const buf = mkCanvas(W, H), bctx = buf.getContext('2d');
+const buf = mkCanvas(W, H), bctx = buf.getContext('2d', { willReadFrequently: true });
 let SCALE = 3;
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 function resize() {
@@ -129,8 +129,8 @@ function loadMap(id) {
 function isSolidAt(x, y, ignore) {
   const m = G.map; if (x < 0 || y < 0 || x >= m.w || y >= m.h) return true;
   if (m.solid[y][x]) return true;
-  for (const e of G.ents) if (e !== ignore && !e.ghost && !e.hidden && e.solid !== false && ((e.x === x && e.y === y) || (e.moving && e.tx === x && e.ty === y))) return true;
-  if (G.player && G.player !== ignore && G.player.x === x && G.player.y === y) return true;
+  for (const e of G.ents) if (e !== ignore && !e.ghost && !e.hidden && e.solid !== false && ((e.x === x && e.y === y) || (e.moving && e.tx === x && e.ty === y) || (e.big && e.y === y && x === e.x + 1))) return true;
+  const P = G.player; if (P && P !== ignore && ((P.x === x && P.y === y) || (P.moving && P.tx === x && P.ty === y))) return true;
   return false;
 }
 function entAt(x, y) { return G.ents.find(e => !e.hidden && ((e.x === x && e.y === y) || (e.big && e.x <= x && x < e.x + 2 && e.y === y))); }
@@ -146,35 +146,51 @@ function startMove(e, dir, force) {
   e.dir = dir; const [dx, dy] = DIRS[dir];
   const tx = e.x + dx, ty = e.y + dy;
   if (!force && isSolidAt(tx, ty, e)) return false;
-  e.moving = true; e.prog = 0; e.fx = e.x; e.fy = e.y; e.tx = tx; e.ty = ty; e.alt = !e.alt; return true;
+  e.moving = true; e.prog = 0; e.fx = e.x; e.fy = e.y; e.tx = tx; e.ty = ty; e.alt = !e.alt; e.steps = (e.steps || 0) + 1; return true;
 }
+function placeEnt(e) { e.px = (e.fx + (e.tx - e.fx) * e.prog) * 16; e.py = (e.fy + (e.ty - e.fy) * e.prog) * 16; }
 function updateEnt(e, dt) {
-  if (!e.moving) return false;
-  e.prog += dt * e.speed;
-  if (e.prog >= 1) { e.prog = 0; e.moving = false; e.x = e.tx; e.y = e.ty; e.px = e.x * 16; e.py = e.y * 16; return true; }
-  e.px = (e.fx + (e.tx - e.fx) * e.prog) * 16; e.py = (e.fy + (e.ty - e.fy) * e.prog) * 16; return false;
+  if (!e.moving) { e.over = 0; return false; }
+  e.prog += dt * e.speed * (e.accel ?? 1);
+  if (e.prog >= 1) {
+    e.over = Math.min(0.5, e.prog - 1); e.prog = 0; e.moving = false; e.x = e.tx; e.y = e.ty; e.px = e.x * 16; e.py = e.y * 16;
+    // paso encadenado (escenas): sigue sin detenerse, con el tiempo que sobró
+    if (e.next) { const d = e.next; e.next = null; if (startMove(e, d, e.nextForce)) { e.prog = e.over; placeEnt(e); } }
+    return true;
+  }
+  placeEnt(e); return false;
 }
+// continuar caminando sin pausa: arranca el paso siguiente con el tiempo que sobró
+function chainStep(e) { if (e.moving && e.over) { e.prog = Math.min(0.5, e.over); e.over = 0; placeEnt(e); } }
 function spriteFrame(e) { if (e.moving) return e.prog < 0.5 ? (e.alt ? 1 : 2) : 0; return e.walkAnim ? (Math.floor(G.t * 4) % 2 ? 1 : 2) : 0; }
 function findEnt(id) { if (id === 'mg' || id === 'player') return G.player; if (id === 'nemo' && G.follower) return G.follower; return G.ents.find(e => e.id === id); }
 
 // --------------------------------------------------------------- warp
+function irisOnPlayer() {   // centro del círculo: MG en la pantalla
+  const p = G.player; if (!p) { G.irisX = W / 2; G.irisY = H / 2; return; }
+  if (typeof M3D !== 'undefined' && M3D.wants && M3D.wants() && M3D.cam && typeof m3dProject === 'function') { const q = m3dProject(p.px / 16 + 0.5, 0.8, p.py / 16 + 0.6); G.irisX = q.x; G.irisY = q.y; }
+  else { G.irisX = p.px - G.cam.x + 8; G.irisY = p.py - G.cam.y + 4; }
+}
 async function warp(to, tx, ty, dir = 'down', opts = {}) {
   G.busy++;
-  if (!opts.noFade) await fadeOut(opts.white ? '#fff' : '#000', opts.fadeMs || 220);
+  const iris = !opts.white && !opts.noFade; if (iris) { G.fadeStyle = 'iris'; irisOnPlayer(); }
+  if (!opts.noFade) await fadeOut(opts.white ? '#fff' : '#000', opts.fadeMs || (iris ? 420 : 220));
   enterMap(to, tx, ty, dir);
-  if (!opts.noFade) await fadeIn(opts.fadeMs || 220);
+  if (iris) { await sleep(60); irisOnPlayer(); }
+  if (!opts.noFade) await fadeIn(opts.fadeMs || (iris ? 420 : 220));
+  G.fadeStyle = null;
   G.busy--;
   const def = G.map.def;
   if (def.onEnter && !opts.skipEnter) await runScript(def.onEnter);
 }
 function enterMap(to, tx, ty, dir) {
-  G.mapId = to; G.map = loadMap(to);
+  G.mapId = to; G.map = loadMap(to); G.camFocus = null;
   const def = G.map.def;
   if (def.era) G.era = def.era;
   G.player = makeEnt({ id: 'mg', x: tx, y: ty, dir, sprite: G.outfit, speed: 4.2 });
   G.ents = [];
   (def.npcs || []).forEach(n => { if (n.cond && !cond(n.cond)) return; G.ents.push(makeEnt(Object.assign({}, n))); });
-  if (hasFlag('nemo_sigue')) { G.follower = makeEnt({ id: 'nemo', x: tx, y: ty, dir, sprite: 'nemo', speed: 4.2, ghost: true, solid: false }); G.player.trail = []; } else G.follower = null;
+  if (hasFlag('nemo_sigue')) { G.follower = makeEnt({ id: 'nemo', x: tx, y: ty, dir, sprite: 'nemo', speed: 4.2, ghost: true, solid: false }); G.player.trail = []; G.player.crumbs = []; } else G.follower = null;
   G.tint = def.tint || null; G.trail = []; G.particles = []; G.emotes = [];
   if (def.music) AUD.play(typeof def.music === 'function' ? def.music() : def.music);
   updateCamera(true);
@@ -195,16 +211,20 @@ async function runScript(fn, ...args) {
 async function walk(id, path, speed) {
   const e = typeof id === 'string' ? findEnt(id) : id; if (!e) return;
   const M = { U: 'up', D: 'down', L: 'left', R: 'right' };
-  const old = e.speed; if (speed) e.speed = speed;
-  for (const ch of path) {
-    if (ch === ' ') { await sleep(150); continue; }
-    const d = M[ch] || ch; let tries = 0;
-    while (!startMove(e, d, e.ghost)) { if (++tries > 40) { startMove(e, d, true); break; } await sleep(50); }
+  const old = e.speed; if (speed) e.speed = speed; e.scriptSpeed = speed || null;
+  const list = (Array.isArray(path) ? path : [...path]).map(ch => ch === ' ' ? ' ' : (M[ch] || ch));
+  for (let i = 0; i < list.length; i++) {
+    const d = list[i];
+    if (d === ' ') { while (e.moving) await waitFrames(1); await sleep(150); continue; }
+    if (!e.moving) { let tries = 0; while (!startMove(e, d, e.ghost)) { if (++tries > 40) { startMove(e, d, true); break; } await sleep(50); } }
     if (e === G.player) onPlayerStepStart();
-    while (e.moving) await waitFrames(1);
+    const nd = list[i + 1]; e.next = nd && nd !== ' ' ? nd : null; e.nextForce = !!e.ghost;
+    const tx = e.tx, ty = e.ty;
+    while (e.moving && e.tx === tx && e.ty === ty) await waitFrames(1);
     if (e === G.player) onPlayerArrive(true);
   }
-  e.speed = old;
+  e.next = null; while (e.moving) await waitFrames(1);
+  e.speed = old; e.scriptSpeed = null;
 }
 function face(id, dir) { const e = findEnt(id); if (!e) return; if (DIRS[dir]) e.dir = dir; else { const o = findEnt(dir); if (o) e.dir = dirTo(e, o); } }
 function dirTo(a, b) { const dx = b.x - a.x, dy = b.y - a.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
@@ -241,20 +261,28 @@ function worldUpdate(dt) {
     if (e.wander && !G.busy && !e.moving && !UI.modal()) { e.wanderT -= dt; if (e.wanderT <= 0) { e.wanderT = 1.5 + Math.random() * 3; const ds = Object.keys(DIRS); const d = ds[Math.floor(Math.random() * 4)]; const [dx, dy] = DIRS[d]; if (Math.abs(e.x + dx - e.home[0]) <= (e.wander === true ? 2 : e.wander) && Math.abs(e.y + dy - e.home[1]) <= (e.wander === true ? 2 : e.wander)) startMove(e, d); else e.dir = d; } }
     if (e.guard && !G.busy && !UI.modal()) guardUpdate(e, dt);
   }
-  if (G.follower) updateEnt(G.follower, dt);
+  if (G.follower) followerUpdate(dt);
+  if (G.chase && typeof chaseUpdate === 'function') chaseUpdate(dt);
+  // fardos que se deslizan (lógica, no dibujo)
+  for (const pr of G.props) if (pr.slide) { pr.slide.t += dt * 6; if (pr.slide.t >= 1) pr.slide = null; }
   // jugador
   const wasMoving = p.moving;
-  if (p.moving) { p.speed = (INP.held.run || INP.held.b) && !G.busy ? 8.5 : 5.2; if (updateEnt(p, dt)) onPlayerArrive(); }
+  for (const k of ['up', 'down', 'left', 'right']) if (INP.pressed[k]) p.buf = k; // tecla recordada durante el paso
+  if (p.moving) {
+    if (!G.busy) p.speed = (INP.held.run || INP.held.b) ? 8.5 : 5.2; else if (p.scriptSpeed) p.speed = p.scriptSpeed;
+    p.accel = Math.min(1, (p.accel ?? 0.7) + dt * 3);
+    if (updateEnt(p, dt)) onPlayerArrive();
+  }
   if (!p.moving && !G.busy && !UI.modal()) {
-    const d = dirHeld();
+    const d = dirHeld() || (wasMoving ? p.buf : null); p.buf = null;
     if (d) {
-      if (p.dir !== d && !wasMoving && turnT <= 0) { p.dir = d; turnT = 0.09; }
-      else if (turnT <= 0 || p.dir === d) {
-        turnT -= dt;
-        if (turnT <= 0) tryStep(d);
+      if (p.dir !== d && !wasMoving && turnT <= 0) { p.dir = d; turnT = 0.08; }
+      else if (turnT <= 0 || p.dir === d || wasMoving) {
+        if (wasMoving) turnT = 0;
+        if (turnT <= 0) { tryStep(d); if (wasMoving) chainStep(p); }
       }
       turnT -= dt;
-    } else turnT = 0;
+    } else { turnT = 0; p.accel = 0.7; }
     if (INP.pressed.a) interact();
     else if (INP.pressed.start) openBook();
     else if (INP.pressed.hint && typeof showHintNow === 'function') showHintNow();
@@ -280,8 +308,24 @@ function tryStep(d) {
   else if (bumpT <= 0) { AUD.sfx('bump'); bumpT = 0.35; }
 }
 function onPlayerStepStart() {
-  const p = G.player;
-  if (G.follower) { const f = G.follower; const target = [p.fx, p.fy]; if (!(f.x === target[0] && f.y === target[1])) { const d = dirTo(f, { x: target[0], y: target[1] }); if (Math.abs(f.x - target[0]) + Math.abs(f.y - target[1]) === 1) startMove(f, d, true); else { f.x = target[0]; f.y = target[1]; f.px = f.x * 16; f.py = f.y * 16; } } f.speed = p.speed; }
+  const p = G.player; p.crumbs = p.crumbs || [];
+  const last = p.crumbs[p.crumbs.length - 1]; if (!last || last[0] !== p.fx || last[1] !== p.fy) p.crumbs.push([p.fx, p.fy]);
+  if (p.crumbs.length > 12) p.crumbs.shift();
+}
+function followerUpdate(dt) {
+  const f = G.follower, p = G.player; if (!f || !p) return;
+  if (updateEnt(f, dt)) chainFollower(f, p, true);
+  if (!f.moving) chainFollower(f, p, false);
+}
+function chainFollower(f, p, justArrived) {
+  const cr = p.crumbs || [];
+  while (cr.length && cr[0][0] === f.x && cr[0][1] === f.y) cr.shift();
+  // se queda una casilla detrás de MG
+  const px = p.moving ? p.tx : p.x, py = p.moving ? p.ty : p.y;
+  if (!cr.length || (cr.length === 1 && Math.abs(f.x - px) + Math.abs(f.y - py) <= 1)) return;
+  const [tx, ty] = cr[0]; const dist = Math.abs(f.x - tx) + Math.abs(f.y - ty);
+  if (dist === 1) { f.speed = Math.max(4.2, (p.speed || 5.2) * (cr.length > 2 ? 1.15 : 1)); if (startMove(f, dirTo(f, { x: tx, y: ty }), true) && justArrived) chainStep(f); }
+  else { f.x = tx; f.y = ty; f.px = tx * 16; f.py = ty * 16; f.moving = false; cr.shift(); }
 }
 function onPlayerArrive(scripted) {
   const p = G.player;
@@ -305,7 +349,7 @@ function interact() {
   if (pr && PROP_TEXT[pr.type]) { runScript(async () => say(null, PROP_TEXT[pr.type])); return; }
 }
 const PROP_TEXT = {
-  bookshelf: 'Libros y más libros. ¡Algún día los leeré todos!', bookshelf2: 'Estantes llenos de libros viejos que huelen a historia.', fountain: 'El agua de la pileta brilla con el sol.', well: 'Un pozo de agua. Se escucha el eco: «¡MG… MG…!»', hay: 'Un fardo de paja. Huele a campo.', barrel: 'Un barril de madera. Mejor no abrirlo.', crate: 'Una caja de madera llena de… ¿papas?', cart: 'Una carreta de madera. ¡Aquí no hay autos, solo caballos!', tree: 'Un árbol frondoso. Da una sombrita rica.', naranjo: '¡Un naranjo! Huele a azahar.', alamo: 'Un álamo altísimo. Por eso le dicen «Alameda» a esta avenida.', candela: 'Un candelabro con velas. ¡Aquí no hay luz eléctrica!', piano: 'Un piano negro y brillante.', lamp: 'Un farol que se enciende con aceite cuando oscurece.', bench: 'Una banca para descansar los pies.', tent: 'Una carpa del campamento patriota.', cannon: 'Un cañón viejo. Mejor mirarlo de lejos.', campfire: 'Una fogata calentita.', statue: 'Una estatua de piedra.', ship: 'Un gran velero con la bandera de Chile.', boat: 'Un bote de pescadores.', bed: 'Mi cama. Todavía no tengo sueño.', bedold: 'Una cama antigua con colchón de lana.', desk: 'Mi escritorio. Ahí hago las tareas (a veces).', toybox: 'Mi caja de juguetes. ¡Está llena!', plant: 'Una planta muy verde.', wardrobe: 'Un ropero de madera.', tablecloth: 'Una mesa con mantel blanco.', stall: '¡Dulces de colores! Primero Nemo, después dulces.', chair: 'Una silla.', fireplace: 'Una chimenea tibia.', painting: 'Un retrato muy serio.', mapwall: 'Un gran mapa de España y América.'
+  bookshelf: 'Libros y más libros. ¡Algún día los leeré todos!', bookshelf2: 'Estantes llenos de libros viejos que huelen a historia.', fountain: 'El agua de la pileta brilla con el sol.', well: 'Un pozo de agua. Se escucha el eco: «¡MG… MG…!»', hay: 'Un fardo de paja. Huele a campo.', barrel: 'Un barril de madera. Mejor no abrirlo.', crate: 'Una caja de madera llena de… ¿papas?', cart: 'Una carreta de madera. ¡Aquí no hay autos, solo caballos!', tree: 'Un árbol frondoso. Da una sombrita rica.', naranjo: '¡Un naranjo! Huele a azahar.', alamo: 'Un álamo altísimo. Por eso le dicen «Alameda» a esta avenida.', candela: 'Un candelabro con velas. ¡Aquí no hay luz eléctrica!', piano: 'Un piano negro y brillante.', lamp: 'Un farol que se enciende con aceite cuando oscurece.', bench: 'Una banca para descansar los pies.', tent: 'Una carpa del campamento patriota.', cannon: 'Un cañón viejo. Mejor mirarlo de lejos.', campfire: 'Una fogata calentita.', statue: 'Una estatua de piedra.', statue_oh: 'Una estatua de piedra de Bernardo O’Higgins.', ship: 'Un gran velero con la bandera de Chile.', boat: 'Un bote de pescadores.', bed: 'Mi cama. Todavía no tengo sueño.', bedold: 'Una cama antigua con colchón de lana.', desk: 'Mi escritorio. Ahí hago las tareas (a veces).', toybox: 'Mi caja de juguetes. ¡Está llena!', plant: 'Una planta muy verde.', wardrobe: 'Un ropero de madera.', tablecloth: 'Una mesa con mantel blanco.', stall: '¡Dulces de colores! Primero Nemo, después dulces.', chair: 'Una silla.', fireplace: 'Una chimenea tibia.', painting: 'Un retrato muy serio.', mapwall: 'Un gran mapa de España y América.'
 };
 
 // --------------------------------------------------------------- guardias (sigilo)
@@ -313,7 +357,7 @@ function guardUpdate(e, dt) {
   const gd = e.guard;
   if (!e.moving) {
     gd.wait = (gd.wait || 0) - dt;
-    if (gd.wait <= 0 && gd.route) { gd.i = gd.i || 0; const ch = gd.route[gd.i % gd.route.length]; gd.i++; const M = { U: 'up', D: 'down', L: 'left', R: 'right' }; if (ch === '.') gd.wait = 0.6; else if (ch.toLowerCase() !== ch) { if (!startMove(e, M[ch])) e.dir = M[ch]; e.speed = 2.6; } else { e.dir = M[ch.toUpperCase()]; gd.wait = 0.9; } }
+    if (gd.wait <= 0 && gd.route) { gd.i = gd.i || 0; const ch = gd.route[gd.i % gd.route.length]; gd.i++; const M = { U: 'up', D: 'down', L: 'left', R: 'right' }; if (ch === '.') gd.wait = 0.6; else if (ch.toLowerCase() !== ch) { if (!startMove(e, M[ch])) { e.dir = M[ch]; gd.i--; gd.wait = 0.4; } e.speed = 2.6; } else { e.dir = M[ch.toUpperCase()]; gd.wait = 0.9; } }
   }
   // visión
   const p = G.player; if (G.flags.invisible) return;
@@ -343,7 +387,8 @@ function updateCamera(snap) {
   G.cam.x = Math.round(cx); G.cam.y = Math.round(cy);
 }
 function drawWorld() {
-  const m = G.map, c = bctx; if (!m) return;
+  const m = G.map; let c = bctx; if (!m) return;
+  if (typeof M3D !== 'undefined' && M3D.wants()) { m3dDraw(); return; }
   let cx = G.cam.x, cy = G.cam.y;
   if (G.shake > 0) { cx += Math.round((Math.random() - .5) * 4); cy += Math.round((Math.random() - .5) * 4); }
   c.fillStyle = m.def.bg || '#000'; c.fillRect(0, 0, W, H);
@@ -368,7 +413,7 @@ function drawWorld() {
   const list = [];
   for (const pr of G.props) {
     const a = Array.isArray(pr.art) ? pr.art[Math.floor(G.t * (pr.opts.fps || 4)) % pr.art.length] : pr.art;
-    let x = pr.x, y = pr.y; if (pr.slide) { pr.slide.t += 1 / 60 * 6; if (pr.slide.t >= 1) pr.slide = null; else { x = pr.slide.fx + (pr.x - pr.slide.fx) * pr.slide.t; y = pr.slide.fy + (pr.y - pr.slide.fy) * pr.slide.t; } }
+    let x = pr.x, y = pr.y; if (pr.slide) { { x = pr.slide.fx + (pr.x - pr.slide.fx) * pr.slide.t; y = pr.slide.fy + (pr.y - pr.slide.fy) * pr.slide.t; } }
     const dx = Math.round(x * 16 + (pr.fw * 16 - a.w) / 2) - cx, dy = Math.round((y + pr.fh) * 16 - a.h) - cy;
     if (dx > W || dy > H || dx + a.w < 0 || dy + a.h < 0) continue;
     list.push({ z: pr.opts.deco ? -1e5 + (y + pr.fh) * 16 : (y + pr.fh) * 16 - 0.5 + (pr.opts.z || 0), draw: () => { if (pr.opts.flip) { c.save(); c.translate(dx + a.w, dy); c.scale(-1, 1); c.drawImage(a.c, 0, 0); c.restore(); } else c.drawImage(a.c, dx, dy); } });
@@ -385,6 +430,8 @@ function drawWorld() {
     const tx = Math.round(e.px / 16), ty = Math.round(e.py / 16);
     const t = m.tiles[ty] && m.tiles[ty][tx]; if (t && OVERLAY_TILES.has(t.name)) c.drawImage(ART.overlay[t.name][fi % 2], tx * 16 - cx, ty * 16 - cy);
   }
+  // ---- estilo DS: agrandar a 2× y seguir dibujando con más detalle
+  if (typeof dsOn === 'function' && dsOn()) c = dsUpscale();
   // partículas
   for (const q of G.particles) { const a = 1 - q.t / q.life; c.globalAlpha = a; c.fillStyle = q.col; const x = Math.round(q.x - cx), y = Math.round(q.y - cy); if (q.star) { c.fillRect(x, y - 1, 1, 3); c.fillRect(x - 1, y, 3, 1); } else c.fillRect(x, y, 2, 2); c.globalAlpha = 1; }
   // emotes
@@ -398,6 +445,7 @@ function drawWorld() {
   // tinte
   const tint = G.tintOverride || G.tint;
   if (tint) applyTint(c, tint);
+  if (c !== bctx) { const dt = Math.min(0.05, G.t - (DS.lastT || G.t)); DS.lastT = G.t; dsLights(c, cx, cy); dsAmbient(c, dt); dsVignette(c); }
   if (typeof drawHintArrow === 'function') drawHintArrow(c, cx, cy);
 }
 function drawEnt(c, e, sx, sy) {
@@ -406,7 +454,7 @@ function drawEnt(c, e, sx, sy) {
   if (e.prop) { const a = ART.props[e.prop]; const art = Array.isArray(a) ? a[Math.floor(G.t * 4) % a.length] : a; c.drawImage(art.c, sx + (16 - art.w) / 2, sy + 16 - art.h); return; }
   const sheet = ART.sprites[e.sprite]; if (!sheet) return;
   const fr = spriteFrame(e); const row = DIR_ROW[e.dir] || 0;
-  c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(sx + 3, sy + 13, 10, 3);
+  c.fillStyle = 'rgba(20,10,30,0.22)'; c.beginPath(); c.ellipse(sx + 8, sy + 14.5, 6, 2.5, 0, 0, 7); c.fill();
   if (e.glow) { c.globalAlpha = 0.5 + Math.sin(G.t * 10) * 0.3; c.fillStyle = '#a0f8ff'; c.beginPath(); c.arc(sx + 8, sy + 6, 10, 0, 7); c.fill(); c.globalAlpha = 1; }
   const bob = (e.moving && e.prog < 0.5) ? 0 : 0;
   c.drawImage(sheet, fr * 16, row * 24, 16, 24, sx, sy - 8 + bob, 16, 24);
@@ -431,6 +479,7 @@ function applyTint(c, tint) {
 // --------------------------------------------------------------- bucle principal
 let last = performance.now();
 function frame(now) {
+  requestAnimationFrame(frame); // primero: un error en un cuadro no congela el juego
   const dt = Math.min(0.05, (now - last) / 1000); last = now; G.t += dt;
   pollGamepad();
   if (G.scene === 'world') G.playTime += dt;
@@ -439,15 +488,22 @@ function frame(now) {
   if (scn && scn.update) scn.update(dt);
   // dibujar
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  if (typeof DS !== 'undefined') DS.out = null;
   if (scn && scn.drawLow) scn.drawLow(bctx);
-  ctx.drawImage(buf, 0, 0, W * SCALE, H * SCALE);
+  ctx.drawImage((typeof DS !== 'undefined' && DS.out) || buf, 0, 0, W * SCALE, H * SCALE);
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0); ctx.imageSmoothingEnabled = true;
   if (scn && scn.drawHi) scn.drawHi(ctx);
   if (G.flash > 0) { ctx.globalAlpha = G.flash; ctx.fillStyle = G.flashColor || '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
-  if (G.fade > 0) { ctx.globalAlpha = G.fade; ctx.fillStyle = G.fadeColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  if (G.scene === 'battle' && typeof batSwirl === 'function' && BAT.t < 0.75) batSwirl(ctx, BAT.t);
+  if (G.fade > 0) {
+    if (G.fadeStyle === 'iris' && G.fade < 0.999) {   // cierre en círculo sobre MG
+      const r = Math.max(0.5, (1 - G.fade) * Math.hypot(W, H) * 0.62); ctx.fillStyle = G.fadeColor || '#000';
+      ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(G.irisX ?? W / 2, G.irisY ?? H / 2, r, 0, Math.PI * 2, true); ctx.fill('evenodd');
+      ctx.strokeStyle = 'rgba(255,230,140,0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(G.irisX ?? W / 2, G.irisY ?? H / 2, r, 0, Math.PI * 2); ctx.stroke();
+    } else { ctx.globalAlpha = G.fade; ctx.fillStyle = G.fadeColor; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+  }
   UI.draw(ctx);
   for (const k in INP.pressed) INP.pressed[k] = false;
-  requestAnimationFrame(frame);
 }
 const SCENES = {
   world: { update: worldUpdate, drawLow: drawWorld }
@@ -461,6 +517,10 @@ async function boot() {
   const ids = ['mateo', 'salas', 'javiera', 'jmcarrera', 'paula', 'rodriguez', 'luisa', 'ohiggins', 'cornelia', 'freire', 'agueda', 'portales', 'mg', 'nemo', 'ohiggins_bandera'];
   const jobs = [];
   ids.forEach(id => { jobs.push(loadImg('r_' + id, `assets/retratos/${id}.png`)); jobs.push(loadImg('c_' + id, `assets/cuerpos/${id}.png`)); jobs.push(loadImg('m_' + id, `assets/medallas/${id}.png`)); });
+  ['mg_espalda', 'mg_casa_espalda', 'dudoso', 'temeroso', 'repaso', 'talavera', 'olvido'].forEach(id => jobs.push(loadImg('v_' + id, `assets/villanos/${id}.png`)));
+  ['consulado', 'alameda', 'reconquista', 'campo', 'chillan', 'maipu', 'monte', 'espiritu'].forEach(id => jobs.push(loadImg('bf_' + id, `assets/fondos/f_${id}.jpg`)));
+  if (typeof M3D !== 'undefined' && M3D.ok && typeof M3D_FILES !== 'undefined') M3D_FILES.forEach(f => jobs.push(loadImg(f.replace(/\.(png|jpg|webp)$/, ''), 'assets/3d/' + f)));
+  ['sanbruno', 'osorio', 'marco', 'espiritu'].forEach(id => { jobs.push(loadImg('r_' + id, `assets/retratos/${id}.png`)); jobs.push(loadImg('v_' + id, `assets/villanos/${id}.png`)); });
   jobs.push(loadImg('logo', 'assets/img/logo.png'), loadImg('portada', 'assets/img/portada.png'), loadImg('pagina_mateo', 'assets/img/pagina_mateo.png'));
   try { const f = new FontFace('Playtime', typeof FUENTE_PLAYTIME !== 'undefined' ? `url(${FUENTE_PLAYTIME})` : 'url(assets/fuentes/playtime.ttf)'); jobs.push(f.load().then(ff => document.fonts.add(ff)).catch(() => { })); } catch (e) { }
   let done = 0; jobs.forEach(j => j.then(() => { done++; const el = document.getElementById('loadbar'); if (el) el.style.width = (100 * done / jobs.length) + '%'; }));

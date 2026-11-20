@@ -1,11 +1,14 @@
 MG y los Fundadores · El juego
 ================================
 
-Un juego de rol 2D (estilo Game Boy Advance) basado en la serie y los libros
+Un juego de rol 2D (estilo portátil, con gráficos suavizados tipo DS) basado en la serie y los libros
 «Pequeños Patriotas» de Miguel Ángel Fernández, con ilustraciones de Rafael Fernández.
 
 CÓMO JUGAR
-- Abrir el archivo index.html con Chrome o Edge (doble clic). No necesita internet.
+- Lo mejor es jugar desde el link de GitHub Pages: ahí el mundo se ve en 2.5D (cámara inclinada,
+  edificios en volumen y personajes ilustrados en el estilo de Rafael Fernández).
+- También se puede abrir index.html con Chrome o Edge (doble clic), sin internet: en ese caso el
+  mundo se ve en el modo 2D clásico, porque el navegador no permite usar imágenes locales en 3D.
 - La partida se guarda sola al cambiar de lugar (y en el libro → Opciones → Guardar).
 
 CONTROLES (teclado)
@@ -17,13 +20,21 @@ CONTROLES (teclado)
 - También funciona con mando (joystick) y, en tablet o celular, con botones en pantalla.
 
 LA HISTORIA (viaje del héroe)
-Casa (hoy) → accidente de Max y Nemo desaparece → regalo del tío (el libro y su bitácora)
-→ 1810 Cabildo: don Mateo y Manuel de Salas → el jinete misterioso
-→ 1814 La Alameda: Javiera y José Miguel Carrera (la noticia de Rancagua)
-→ 1816 Reconquista: Águeda Monasterio, Luisa Recabarren, Paula Jaraquemada y Manuel Rodríguez
-→ 1817 Chillán: María Cornelia Olivares → 1818 Maipú: Ramón Freire (y el abrazo de Maipú)
-→ 1823 Santiago: Bernardo O'Higgins (el piano y su renuncia) → 1832 Valparaíso: Diego Portales
-→ con las 12 medallas se abre el regreso: duelo final contra «El Olvido» → casa, carta del tío y poema de MG.
+Casa (hoy) → accidente de Max y Nemo desaparece → recuerdo del regalo del tío (el libro y su bitácora)
+→ 1810 Real Consulado (Cabildo abierto): don Mateo y Manuel de Salas → el jinete misterioso
+→ 1814 La Alameda: Javiera y José Miguel Carrera (la noticia de Rancagua) → llega el capitán San Bruno
+→ 1816 Reconquista: bando de Marcó del Pont, Águeda Monasterio, Luisa Recabarren, duelo con San Bruno en el
+  portón sur, Paula Jaraquemada y Manuel Rodríguez
+→ 1817 Mendoza y la cordillera: San Martín, el Ejército de los Andes y Chacabuco
+→ 1817 Chillán: María Cornelia Olivares → 1818 Maipú: Ramón Freire y el duelo con el general Osorio
+→ 1823 Santiago: Bernardo O'Higgins → 1832 Valparaíso: Diego Portales
+→ con las 12 medallas: el Cerro Huelén (Mirador del Tiempo), los Cuatro del Rey y el Espíritu Realista;
+  despedida del tío y regreso a casa. MG volverá…
+
+COMBATES POR TURNOS
+- En cada turno: Argumentar (pregunta de historia), Poderes (uno por medalla), Mochila o Pista.
+- Los villanos atacan y bajan el ánimo, pero nunca se pierde.
+- Si un soldado del Rey te ve, te interroga (dos preguntas) y luego sigues donde estabas.
 
 PISTAS (nunca te quedas atascada)
 - Una flecha dorada siempre apunta al próximo objetivo (también fuera de la pantalla).
@@ -35,5 +46,10 @@ Minijuegos: duelos de ideas (preguntas de historia), costura de la bandera, melo
 y piano, silbido del chincol, sigilo entre soldados, fardos de paja, túnel oscuro y ordenar la
 línea de tiempo.
 
-Arte de personajes, baldosas y música: hechos en código (sin IA de imágenes). Retratos y medallas:
-recortes de los dibujos originales de Rafael Fernández.
+Mundo 2.5D: three.js (licencia MIT). Texturas, objetos y personajes ilustrados con IA (Higgsfield) en el
+estilo de Rafael Fernández, con su autorización; los fundadores, MG y Nemo parten de sus dibujos originales.
+Personajes en 3D (todos salvo Nemo y las figuras fantasmales): modelos animados con Meshy (Higgsfield)
+a partir de esas mismas vistas; GLTFLoader de three.js (MIT). Retratos de los diálogos: los dibujos.
+Arte 2D clásico, baldosas y música: hechos en código. Retratos y medallas:
+recortes de los dibujos originales de Rafael Fernández. Los cuatro villanos se generaron con IA
+(Higgsfield) en el estilo de Rafael, con su autorización. Datos históricos: Memoria Chilena.

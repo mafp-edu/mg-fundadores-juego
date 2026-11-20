@@ -25,19 +25,17 @@ const HINTS = [
   [() => F_('accidente') && !F_('viaje1'), 'casa_pieza', [5, 8], 'Vuelve al laboratorio para el viaje.'],
   [() => F_('accidente') && !F_('viaje1'), 'casa_living', [14, 7], 'Baja al laboratorio.'],
   // ---- 1810
-  [() => !F_('mateo_conocido'), 'stgo1810', { ent: 'mateo' }, 'Don Mateo está frente al Cabildo, al norte de la plaza.'],
+  [() => !F_('mateo_conocido'), 'stgo1810', { ent: 'mateo' }, 'Don Mateo está frente al Real Consulado, al norte de la plaza.'],
   [() => F_('mateo_conocido') && N_('inv') < 3, 'stgo1810', () => firstEnt(['vecino_a', 'vecino_b', 'vecino_c'], i => 'inv' + (i + 1)), 'Busca a los vecinos: junto a la pileta, cerca de la Catedral y junto a la carreta.'],
   [() => N_('inv') >= 3 && !F_('cabildo_abierto'), 'stgo1810', { ent: 'mateo' }, 'Vuelve donde don Mateo.'],
-  [() => F_('cabildo_abierto') && !F_('medalla_salas') && !F_('jinete_pendiente'), 'stgo1810', [17, 8], 'Entra al Cabildo por los arcos del centro.'],
+  [() => F_('cabildo_abierto') && !F_('medalla_salas') && !F_('jinete_pendiente'), 'stgo1810', [17, 8], 'Entra al Real Consulado por los arcos del centro.'],
   [() => !F_('mapa_visto'), 'cabildo', { ent: 'mateo' }, 'Don Mateo te espera junto al gran mapa.'],
   [() => !F_('duelo_dudoso'), 'cabildo', { ent: 'dudoso' }, 'Conversa con el Vecino Dudoso. Si no sabes, recuerda lo que dijo don Mateo.'],
   [() => !F_('medalla_mateo'), 'cabildo', { ent: 'mateo' }, 'Vuelve donde don Mateo.'],
   [() => !F_('nemo_salas'), 'cabildo', { ent: 'salas' }, 'Nemo está junto a Manuel de Salas, cerca de los estantes.'],
   [() => F_('buscar_libros') && N_('libros') < 3, 'cabildo', () => { const P = [[17, 4], [22, 11], [15, 13]]; for (let i = 0; i < 3; i++) if (!F_('libro' + (i + 1))) return P[i]; return null; }, 'Busca los destellos en el suelo del salón.'],
   [() => !F_('medalla_salas'), 'cabildo', { ent: 'salas' }, 'Devuélvele los libros a Manuel de Salas.'],
-  [() => F_('jinete_pendiente'), 'cabildo', [11, 15], 'Sal del Cabildo a buscar a Nemo.'],
-  [() => F_('jinete_pendiente'), 'stgo1810', [25, 23], 'Camina hacia el parque del sureste…'],
-  [() => F_('dest1814') && !F_('llego_1814'), 'cabildo', [11, 15], 'Sal del Cabildo.'],
+  [() => F_('dest1814') && !F_('llego_1814'), 'cabildo', [11, 15], 'Sal del Real Consulado.'],
   [() => F_('dest1814') && !F_('llego_1814'), 'stgo1810', [31, 24], 'La nave está en el parque del sureste. Presiona A frente a ella.'],
   // ---- 1814
   [() => !F_('nemo_javiera'), 'alameda1814', [14, 8], 'El jardín con telas de colores está al norte. Entra por el portón.'],
@@ -59,6 +57,7 @@ const HINTS = [
   [() => F_('respuesta') && !F_('medalla_agueda'), 'stgo1816', [3, 25], 'Vuelve a la casa del suroeste con la respuesta.'],
   [() => F_('respuesta') && !F_('medalla_agueda'), 'casa_agueda', { ent: 'agueda' }, 'Habla con doña Águeda.'],
   [() => F_('camino_sur') && !F_('llego_hacienda'), 'casa_agueda', [5, 8], 'Sal hacia el camino del sur.'],
+  [() => F_('camino_sur') && !F_('duelo_sanbruno'), 'stgo1816', { ent: 'sanbruno' }, 'El capitán San Bruno vigila el portón sur, junto a la nave. Habla con él para enfrentarlo.'],
   [() => F_('camino_sur') && !F_('llego_hacienda'), 'stgo1816', [25, 27], 'El camino del sur está abajo, junto a la nave.'],
   [() => !F_('paula_hablo'), 'hacienda', { ent: 'paula' }, 'Doña Paula está frente a su casa.'],
   [() => !F_('medalla_paula'), 'hacienda', [29, 9], 'Empuja cada fardo caminando contra él. Ponlos sobre las tres marcas amarillas. Si se traban, doña Paula los ordena de nuevo.'],
@@ -70,7 +69,17 @@ const HINTS = [
   [() => !F_('teatro_ok'), 'campo', [24, 6], 'Escóndete en el maizal (ahí no te ven) y llega arriba a la derecha.'],
   [() => !F_('cascada_abierta'), 'campo', [27, 4], 'Ponte frente a la cascada y presiona A.'],
   [() => !F_('medalla_rodriguez'), 'cueva', { ent: 'rodriguez' }, 'Conversa con Manuel Rodríguez.'],
-  [() => F_('dest1817') && !F_('llego_chillan'), 'cueva', [11, 7], 'Tu nave está al fondo de la cueva.'],
+  [() => F_('destAndes') && !F_('llego_mendoza'), 'cueva', [11, 7], 'Tu nave está al fondo de la cueva.'],
+  // ---- 1817 · el cruce de los Andes
+  [() => !F_('sanmartin_hablo'), 'mendoza', { ent: 'sanmartin' }, 'El general San Martín está al centro del campamento.'],
+  [() => !F_('arriero_hablo'), 'mendoza', { ent: 'arriero' }, 'El arriero está junto a las mulas.'],
+  [() => !F_('mula3') && !hasItem('herraduras') && !F_('herraduras_dadas'), 'mendoza', { ent: 'herrero' }, 'El herrero, junto a los yunques, tiene las herraduras.'],
+  [() => nMulas() < 3, 'mendoza', () => { const k = [1, 2, 3].find(k => !F_('mula' + k)); return [[11, 11], [15, 11], [19, 11]][k - 1]; }, 'Habla con cada mula para cargarla.'],
+  [() => !F_('mulas_ok'), 'mendoza', { ent: 'arriero' }, 'Avísale al arriero que las mulas están listas.'],
+  [() => F_('andes_cruzando') && !F_('llego_cordillera'), 'mendoza', [0, 9], 'La senda a la cordillera sale por el oeste (a la izquierda).'],
+  [() => !F_('senda_ok'), 'cordillera', [8, 7], 'Empuja cada bloque por la senda hasta quedar bajo un hueco con marca amarilla, y después hacia arriba. Si se trabaron, habla con el arriero.'],
+  [() => !F_('chacabuco_ok'), 'cordillera', [0, 8], 'Baja hacia el valle por el oeste.'],
+  [() => F_('dest1817') && !F_('llego_chillan'), 'cordillera', [2, 11], 'Tu nave está en el descanso de abajo a la izquierda.'],
   // ---- 1817 y 1818
   [() => !F_('cornelia_hablo'), 'chillan', { ent: 'cornelia' }, 'La señora sobre la banca, al centro de la plaza.'],
   [() => !F_('medalla_cornelia') && [1, 2, 3].some(k => !F_('conv' + k)), 'chillan', () => firstEnt(['conv1', 'conv2', 'conv3'], i => 'conv' + (i + 1)), 'Convence a los vecinos. Piensa en lo que te enseñaron los fundadores.'],
@@ -90,8 +99,18 @@ const HINTS = [
   [() => F_('dest1832') && !F_('llego_valpo'), 'stgo1823', [31, 24], 'La nave está en el parque del sureste.'],
   [() => !F_('medalla_portales'), 'valpo', [17, 13], 'La oficina de don Diego es la del letrero, al centro del puerto.'],
   [() => !F_('medalla_portales'), 'oficina', { ent: 'portales' }, 'Habla con don Diego Portales.'],
-  [() => F_('doce_medallas') && !F_('fin'), 'oficina', [5, 8], 'Sal de la oficina.'],
-  [() => F_('doce_medallas') && !F_('fin'), 'valpo', [10, 3], 'La nave está en el muelle. ¡A casa!']
+  [() => F_('doce_medallas') && !F_('llego_monte'), 'oficina', [5, 8], 'Sal de la oficina.'],
+  [() => F_('doce_medallas') && !F_('llego_monte'), 'valpo', [10, 3], 'La nave está en el muelle. Viaja al Cerro Huelén.'],
+  // ---- el Mirador del Tiempo
+  [() => !F_('obs1'), 'monte', { ent: 'centinela' }, 'Habla con el centinela del primer paso y elige el poder que te ayude a pasar sin que te reconozca.'],
+  [() => !F_('rey1'), 'monte', { ent: 'rey1' }, 'El primero de los Cuatro del Rey te espera en el paso.'],
+  [() => !F_('obs2'), 'monte', [11, 27], 'Revisa el portón del segundo paso. ¿Qué poder tiene que ver con música?'],
+  [() => !F_('rey2'), 'monte', { ent: 'rey2' }, 'El segundo guardián te espera detrás del portón.'],
+  [() => !F_('obs3'), 'monte', [11, 18], 'Revisa el derrumbe del tercer paso. Solo no se puede: ¿qué poder reúne a mucha gente?'],
+  [() => !F_('rey3'), 'monte', { ent: 'rey3' }, 'El tercer guardián te espera detrás del derrumbe.'],
+  [() => !F_('obs4'), 'monte', { ent: 'niebla' }, 'Habla con la niebla del cuarto paso. ¿Qué poder ilumina como un libro?'],
+  [() => !F_('rey4'), 'monte', { ent: 'rey4' }, 'El último guardián te espera en el paso.'],
+  [() => !F_('monte_final'), 'monte', [11, 6], 'Sube a la cumbre.']
 ];
 function currentHint() {
   if (!G.map) return null;
@@ -148,10 +167,12 @@ const CHAPTERS = [
   { n: 'Capítulo 2', t: 'El primer paso', p: 'Santiago · 18 de septiembre de 1810', f: ['mateo', 'salas'] },
   { n: 'Capítulo 3', t: 'La primera bandera', p: 'La Alameda · 1814', f: ['javiera', 'jmcarrera'] },
   { n: 'Capítulo 4', t: 'Los espías de la Reconquista', p: 'Santiago · 1816', f: ['agueda', 'luisa', 'paula', 'rodriguez'] },
-  { n: 'Capítulo 5', t: 'Una voz en la plaza', p: 'Chillán · 1817', f: ['cornelia'] },
-  { n: 'Capítulo 6', t: 'El abrazo de Maipú', p: 'Llano de Maipú · 5 de abril de 1818', f: ['freire'] },
-  { n: 'Capítulo 7', t: 'El piano y la decisión de Bernardo', p: 'Santiago · 1823', f: ['ohiggins'] },
-  { n: 'Capítulo 8', t: 'La casa en orden', p: 'Valparaíso · 1832', f: ['portales'] },
+  { n: 'Capítulo 5', t: 'El Cruce de los Andes', p: 'Mendoza y la cordillera · 1817', f: [] },
+  { n: 'Capítulo 6', t: 'Una voz en la plaza', p: 'Chillán · 1817', f: ['cornelia'] },
+  { n: 'Capítulo 7', t: 'El abrazo de Maipú', p: 'Llano de Maipú · 5 de abril de 1818', f: ['freire'] },
+  { n: 'Capítulo 8', t: 'El piano y la decisión de Bernardo', p: 'Santiago · 1823', f: ['ohiggins'] },
+  { n: 'Capítulo 9', t: 'La casa en orden', p: 'Valparaíso · 1832', f: ['portales'] },
+  { n: 'Capítulo 10', t: 'El Mirador del Tiempo', p: 'Cerro Huelén · fuera del tiempo', f: [] },
   { n: 'Epílogo', t: 'De vuelta antes de la cena', p: 'Casa de MG · hoy', f: [] }
 ];
 async function chapterCard(i) {
@@ -178,11 +199,11 @@ function chapterOnce(i) { if (G.flags['cap_' + i]) return Promise.resolve(); set
 
 // ------------------------------------------------------------ intro animada (enganche)
 async function introCinematic() {
-  G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.label = ''; TRAVEL.dest = ''; AUD.play('tiempo');
+  G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.label = ''; TRAVEL.dest = ''; TRAVEL.intro = true; AUD.play('tiempo');
   G.fade = 0;
   const lines = ['Un libro mágico…', 'un perro detective…', 'doce fundadores…', '¡y un viaje por la historia de Chile!'];
-  for (const l of lines) { TRAVEL.dest = l; await sleep(1150); }
-  TRAVEL.dest = ''; AUD.sfx('bark'); await sleep(300);
+  for (const l of lines) { TRAVEL.dest = l; TRAVEL.t = 0; await sleep(1700); }
+  TRAVEL.dest = ''; TRAVEL.intro = false; AUD.sfx('bark'); await sleep(300);
   await flash('#ffffff', 700);
   G.scene = 'world'; G.fade = 1;
 }

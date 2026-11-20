@@ -303,6 +303,7 @@ function buildProps() {
   A.hen = animProp(2, 16, 16, (p, f) => { p.ell(8, 11, 4, 3, C.ol); p.ell(8, 11, 3, 2, '#f4f0e8'); p.circ(5 + f, 7, 2, '#f4f0e8'); p.px(3 + f, 7, '#e8a030'); p.px(5 + f, 5, '#e84a4a'); p.px(5 + f, 7, '#2a1e1e'); p.r(7, 14, 1, 2, '#e8a030'); p.r(9, 14, 1, 2, '#e8a030'); });
   A.cactus = prop(16, 24, p => { p.r(6, 4, 4, 18, '#3a8a4a'); p.r(2, 9, 3, 6, '#3a8a4a'); p.r(11, 7, 3, 7, '#3a8a4a'); p.vl(7, 4, 18, '#5aaa6a'); });
   A.statue = prop(16, 32, p => { p.r(2, 22, 12, 10, '#a8a094'); p.hl(2, 22, 12, '#c8c0b4'); p.circ(8, 6, 3, '#b8b0a4'); p.r(5, 9, 6, 13, '#b8b0a4'); p.vl(5, 9, 13, '#d8d0c4'); });
+  A.statue_oh = A.statue;   // en 2D comparte el dibujo; en 2.5D usa b_estatua_oh (O'Higgins)
   A.timemachine = animProp(4, 32, 40, (p, f) => {
     p.r(3, 34, 4, 6, '#6a7484'); p.r(25, 34, 4, 6, '#6a7484');
     p.ell(16, 22, 15, 15, C.ol); p.ell(16, 22, 14, 14, '#c8d0dc'); p.ell(13, 18, 9, 8, '#e4eaf2');
@@ -312,6 +313,10 @@ function buildProps() {
     p.r(14, 3, 4, 5, '#8a94a4'); p.circ(16, 2, 2, (f % 2) ? '#ff5050' : '#ffd0d0');
   }, [2, 1]);
   A.fardo = A.hay;
+  A.nieve = prop(16, 16, p => { p.ell(8, 10, 7, 5, C.ol); p.ell(8, 10, 6, 4, '#eef4fc'); p.ell(6, 8, 3, 2, '#ffffff'); p.px(10, 12, '#a8b8d0'); p.px(4, 11, '#c8d4e8'); });
+  A.yunque = prop(16, 16, p => { p.r(5, 9, 6, 6, '#7a4a28'); p.hl(5, 9, 6, '#a06a3a'); p.r(2, 5, 12, 4, C.ol); p.r(3, 6, 10, 2, '#5a5a66'); p.hl(3, 6, 10, '#8a8a98'); p.r(1, 6, 2, 1, '#5a5a66'); });
+  A.mula = prop(32, 24, p => { p.ell(15, 13, 10, 6, C.ol); p.ell(15, 13, 9, 5, '#8a6448'); p.r(6, 16, 2, 7, '#6a4a34'); p.r(11, 17, 2, 6, '#6a4a34'); p.r(19, 17, 2, 6, '#6a4a34'); p.r(23, 16, 2, 7, '#6a4a34');
+    p.r(23, 5, 5, 9, '#8a6448'); p.r(26, 3, 2, 3, '#6a4a34'); p.px(26, 7, '#1a1a1a'); p.r(11, 7, 9, 6, '#a8703a'); p.hl(11, 7, 9, '#c89058'); p.r(13, 5, 5, 2, '#d8c8a8'); }, [2, 1]);
   A.fridge = prop(16, 32, p => { p.r(1, 0, 14, 32, C.ol); p.r(2, 1, 12, 30, '#e8eef4'); p.hl(2, 11, 12, '#a8b4c0'); p.r(11, 4, 1, 5, '#8a94a4'); p.r(11, 14, 1, 7, '#8a94a4'); p.r(4, 3, 4, 3, '#f8d040'); p.r(5, 16, 3, 4, '#e84a4a'); }, [1, 1], 16);
   A.stove = prop(16, 24, p => { p.r(1, 6, 14, 18, C.ol); p.r(2, 7, 12, 16, '#d8dce4'); p.r(3, 8, 4, 3, '#3a3a44'); p.r(9, 8, 4, 3, '#3a3a44'); p.r(4, 14, 8, 7, '#5a5e68'); p.hl(4, 15, 8, '#8a8e98'); });
   A.counter = prop(32, 20, p => { p.r(1, 2, 30, 17, C.ol); p.r(2, 3, 28, 15, '#c8a070'); p.r(2, 3, 28, 4, '#f4f0e8'); p.r(20, 0, 7, 5, '#e8c060'); p.ell(23, 1, 3, 1, '#f0d890'); p.vl(16, 8, 9, '#8a6a4a'); }, [2, 1]);
@@ -593,7 +598,7 @@ const CAST = {
   mg_casa: { style: 'long', hair: ['#c9a77a', '#9c7a52', '#e6cc9e'], iris: '#6d8db4', body: 'kid', top: ['#f2a7b5', '#d98898'], ycol: '#fff3e0', shoes: '#f2cf3a', extras: { bracelet: '#3ec1c9' } },
   mg: { style: 'long', hair: ['#c9a77a', '#9c7a52', '#e6cc9e'], iris: '#6d8db4', body: 'kid', top: ['#9a6a44', '#7a5034'], ycol: '#a87a52', shoes: '#f2cf3a', extras: { bracelet: '#3ec1c9' } },
   mg_espia: { style: 'long', hair: ['#c9a77a', '#9c7a52', '#e6cc9e'], iris: '#6d8db4', body: 'kid', top: ['#9a6a44', '#7a5034'], ycol: '#a87a52', shoes: '#f2cf3a', extras: { cape: '#24222c', bracelet: '#3ec1c9' } },
-  max: { style: 'short', hair: ['#d8b880', '#b09060'], iris: '#6d8db4', body: 'toddler', top: ['#5a9ae0'], low: ['#3a5a9a'], shoes: '#e84a4a' },
+  max: { style: 'short', hair: ['#1e1a20', '#121014', '#3a3440'], iris: '#6d8db4', body: 'toddler', top: ['#5a9ae0'], low: ['#3a5a9a'], shoes: '#e84a4a' },
   mama: { style: 'bob', hair: ['#7a5236', '#5a3a24'], body: 'coat', top: ['#7ab0d8'], low: ['#4a5a7a'], shoes: '#3a3a4a', extras: { labcoat: true } },
   papa: { style: 'short', hair: ['#5a4030', '#3a2a20'], body: 'coat', top: ['#5a8a5a', '#466e46', '#ffffff'], low: ['#4a4a5a'], shoes: '#2a2a2a' },
   tio: { style: 'tio', hair: ['#6a6a70'], body: 'coat', top: ['#5a5e6a', '#464a56', '#ffffff'], low: ['#3a3e4a'], acc: ['#3a3438', '#262024'], shoes: '#1e1a1a', extras: { briefcase: true } },
@@ -628,6 +633,10 @@ const CAST = {
   realista: { style: 'shako', hair: ['#3a2a1a'], acc: ['#c8202a', '#9a1820'], body: 'coat', top: ['#f2f0e8', '#d4d0c4', '#c8202a'], low: ['#2a3a6a'], shoes: '#1e1a1a', extras: { epaulettes: true } },
   patriota: { style: 'shako', hair: ['#3a2a1a'], acc: ['#2a2a3a', '#1a1a24'], body: 'coat', top: ['#2a4a9a', '#1e3a7a', '#e8c050'], low: ['#f2f2ee', '#d0d0c8'], shoes: '#1e1a1a' },
   marino: { style: 'short', hair: ['#5a4030'], body: 'coat', top: ['#f4f4f0', '#d4d4cc', '#2a4a9a'], low: ['#2a4a9a'], shoes: '#1e1a1a' },
+  sanbruno: { style: 'hat', hair: ['#1a1414', '#0e0a0a'], acc: ['#1a1418', '#0e0a0e'], body: 'coat', top: ['#7a1a22', '#5a1018', '#e8c050'], low: ['#f2f2ee'], shoes: '#141218', extras: { mustache: '#1a1414', epaulettes: true, cape: '#3a0a12' } },
+  osorio: { style: 'short', hair: ['#d8d8d8', '#b0b0b0', '#f0f0f0'], body: 'coat', top: ['#f2f0e8', '#d4d0c4', '#c8202a'], low: ['#2a3a6a'], shoes: '#1e1a1a', extras: { epaulettes: true, sash: '#c8202a', sideburns: true } },
+  marco: { style: 'wig', hair: ['#f4f4f0', '#c8c8c4', '#ffffff'], body: 'coat', top: ['#d890c8', '#b070a8', '#ffffff'], low: ['#f2f2ee'], acc: ['#2a2226'], shoes: '#1e1a1a', extras: { collar: '#ffffff', sash: '#e8c050' } },
+  espiritu: { style: 'hood', hair: ['#140a10'], acc: ['#4a0a1a', '#2a0610'], body: 'robe', top: ['#4a0a1a', '#2a0610', '#e8c050'], shoes: '#140a10', skin: '#c8b0b8' },
   olvido: { style: 'hood', hair: ['#1a1424'], acc: ['#3a2a5a', '#241a3a'], body: 'robe', top: ['#3a2a5a', '#241a3a', '#8a6ad0'], shoes: '#1a1424', skin: '#b8b0d0' }
 };
 function buildSprites() {

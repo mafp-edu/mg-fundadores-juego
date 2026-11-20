@@ -67,39 +67,111 @@ const JINGLES = {
   misterio: { bpm: 90, mel: 'E5/2 D#5/2 E5/2 B4/2 D5/2 C5/2 A4/6', har: '', bas: 'A2/8 E2/6' }
 };
 
+// --------------------------------------------------------------- MÚSICA 2.0: espacio y variación
+// Bus de efectos: reverberación (sala generada) + eco estéreo para la melodía + paneo.
+// Cada canción se toca en ciclos de 4 vueltas con arreglos distintos:
+//   vuelta A: melodía + bajo + colchón suave · B: todo, con arpegios y batería completa
+//   C: melodía con otro timbre y eco, más platillos · D: respiro (flauta suave, colchón y bajo)
+// Al final de las vueltas B y C hay un redoble de transición.
+const CALM_SONGS = new Set(['triste', 'cueva', 'piano', 'tiempo', 'reconquista']);
+function mkImpulse(c, secs, decay) {
+  const len = Math.floor(c.sampleRate * secs), b = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+  return b;
+}
+AUD.buildFx = function () {
+  const c = AUD.ctx; if (AUD.musicIn) return;
+  const soft = c.createBiquadFilter(); soft.type = 'lowpass'; soft.frequency.value = 7200; soft.Q.value = 0.3; soft.connect(AUD.musicGain);
+  AUD.musicIn = c.createGain(); AUD.musicIn.connect(soft);
+  const rev = c.createConvolver(); rev.buffer = mkImpulse(c, 2.6, 3.2); const rg = c.createGain(); rg.gain.value = 0.36;
+  AUD.revIn = c.createGain(); AUD.revIn.connect(rev); rev.connect(rg); rg.connect(soft);
+  AUD.musicIn.connect(AUD.revIn);
+  // eco estéreo (ping-pong)
+  const dl = c.createDelay(1.5), dr = c.createDelay(1.5), fb = c.createGain(), lp = c.createBiquadFilter(), out = c.createGain();
+  fb.gain.value = 0.32; lp.type = 'lowpass'; lp.frequency.value = 2400; out.gain.value = 0.5;
+  const pl = c.createStereoPanner ? c.createStereoPanner() : c.createGain(), pr = c.createStereoPanner ? c.createStereoPanner() : c.createGain();
+  if (pl.pan) { pl.pan.value = -0.7; pr.pan.value = 0.7; }
+  AUD.echoIn = c.createGain(); AUD.echoIn.connect(dl); dl.connect(lp); lp.connect(pl); pl.connect(out); lp.connect(dr); dr.connect(pr); pr.connect(out); dr.connect(fb); fb.connect(dl); out.connect(AUD.musicIn);
+  AUD.dl = dl; AUD.dr = dr;
+  const mkPan = v => { if (!c.createStereoPanner) return AUD.musicIn; const p = c.createStereoPanner(); p.pan.value = v; p.connect(AUD.musicIn); return p; };
+  AUD.bus = { mel: mkPan(-0.12), har: mkPan(0.3), bas: mkPan(0), padL: mkPan(-0.55), padR: mkPan(0.55), drm: mkPan(0.08) };
+};
+// colchón: dos osciladores suaves desafinados, abiertos en estéreo
+function padTone(t, freq, dur, gain) {
+  const c = AUD.ctx;
+  [[AUD.bus.padL, -7], [AUD.bus.padR, 7]].forEach(([dest, cents]) => {
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(freq, t); o.detune.setValueAtTime(cents, t);
+    const at = Math.min(0.35, dur * 0.4);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + at); g.gain.setValueAtTime(gain, t + Math.max(at, dur - 0.05)); g.gain.linearRampToValueAtTime(0, t + dur + 0.45);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.5);
+  });
+}
+function sendTone(t, freq, dur, wave, gain, dest, opts, echo) {
+  tone(t, freq, dur, wave, gain, dest, opts);
+  if (echo) tone(t, freq, dur, wave, gain * echo, AUD.echoIn, opts);
+}
 AUD.play = function (name, force) {
   if (!AUD.ctx) { AUD.pending = name; return; }
   if (AUD.curName === name && !force) return;
   AUD.stop();
   const s = SONGS[name]; if (!s) return;
+  AUD.buildFx();
   AUD.curName = name;
-  const tracks = [['mel', s.melWave || 'sq50', 0.55], ['har', 'sq25', 0.3], ['bas', 'tri', 0.8]].filter(([k]) => s[k]).map(([k, w, g]) => ({ seq: parseSeq(s[k]), wave: w, gain: g, i: 0, t: 0 }));
+  const calm = CALM_SONGS.has(name);
+  const tracks = [['mel', s.melWave || 'sq50', 0.5], ['har', 'sq25', 0.26], ['bas', 'tri', 0.78]].filter(([k]) => s[k]).map(([k, w, g]) => ({ key: k, seq: parseSeq(s[k]), wave: w, gain: g, i: 0, t: 0 }));
   const step = 60 / s.bpm / 2; // corchea
   const total = Math.max(...tracks.map(tr => tr.seq.reduce((a, b) => a + b[1], 0)));
-  const st = { tracks, step, total, start: AUD.ctx.currentTime + 0.1, loop: 0, drm: s.drm || '', ts: s.ts || 4, nextDrum: 0 };
+  tracks.forEach(tr => { const len = tr.seq.reduce((a, b) => a + b[1], 0); if (len < total) tr.seq.push(['R', total - len]); });
+  const ts = s.ts || 4;
+  const defDrm = calm ? '' : ts === 3 ? 'k.hsh.' : 'k.hsk.hs';
+  const st = { tracks, step, total, start: AUD.ctx.currentTime + 0.12, drm: s.drm || defDrm, nextDrum: 0 };
   AUD.cur = st;
+  const beat = step * 2; AUD.dl.delayTime.value = Math.min(1.4, beat * 0.75); AUD.dr.delayTime.value = Math.min(1.4, beat * 0.75);
   tracks.forEach(tr => { tr.t = st.start; });
   st.nextDrum = st.start;
+  const loopLen = total * step;
   const sched = () => {
     if (AUD.cur !== st) return;
-    const ahead = AUD.ctx.currentTime + 0.25;
+    const ahead = AUD.ctx.currentTime + 0.3;
     tracks.forEach(tr => {
       while (tr.t < ahead) {
-        const [n, d] = tr.seq[tr.i]; const dur = d * step;
-        if (n !== 'R') tone(tr.t, noteFreq(n), dur * 0.92, tr.wave, tr.gain, AUD.musicGain, { vib: tr.wave !== 'tri' && d >= 3 });
+        const [n, d] = tr.seq[tr.i]; const dur = d * step; const L = Math.floor((tr.t - st.start + 1e-4) / loopLen) % 4;
+        if (n !== 'R') {
+          const f = noteFreq(n); const hum = 0.9 + Math.random() * 0.2;
+          if (tr.key === 'mel') {
+            if (L === 3) sendTone(tr.t, f, dur * 0.95, 'tri', tr.gain * 0.75 * hum, AUD.bus.mel, { vib: d >= 2, sus: 0.6 }, 0.5);
+            else if (L === 2) sendTone(tr.t, f, dur * 0.9, s.melWave === 'sq12' ? 'sq25' : 'sq12', tr.gain * hum, AUD.bus.mel, { vib: d >= 3 }, 0.55);
+            else sendTone(tr.t, f, dur * 0.92, tr.wave, tr.gain * hum, AUD.bus.mel, { vib: d >= 3 }, L === 1 ? 0.3 : 0.2);
+          } else if (tr.key === 'har') {
+            padTone(tr.t, f / 2, dur, 0.07);
+            if (L === 1 || L === 2) { // arpegio: fundamental, quinta y octava
+              const arp = [1, 1.5, 2, 1.5]; const k = Math.max(1, Math.round(d));
+              for (let j = 0; j < k; j++) tone(tr.t + j * step, f * arp[j % 4], step * 0.8, 'sq25', tr.gain * 0.8 * hum, AUD.bus.har, { sus: 0.4 });
+            } else if (L === 0) tone(tr.t, f, dur * 0.9, tr.wave, tr.gain * 0.6, AUD.bus.har, {});
+          } else {
+            if (L === 3) { if (d >= 1) tone(tr.t, f, Math.min(dur, step * 2) * 0.9, 'sine', tr.gain * 0.9, AUD.bus.bas, { sus: 0.6 }); }
+            else tone(tr.t, f, dur * 0.9, tr.wave, tr.gain * hum, AUD.bus.bas, {});
+          }
+        }
         tr.t += dur; tr.i++;
-        if (tr.i >= tr.seq.length) { tr.i = 0; const loopEnd = st.start + total * step * (Math.floor((tr.t - st.start) / (total * step - 1e-6)) + (0)); }
+        if (tr.i >= tr.seq.length) tr.i = 0;
       }
     });
-    // sincronía: si una pista termina antes, espera al largo total
     if (st.drm) {
       const pat = st.drm; let k = Math.round((st.nextDrum - st.start) / step);
-      while (st.nextDrum < ahead) { const ch = pat[k % pat.length]; if (ch && ch !== '.') drum(st.nextDrum, ch, AUD.musicGain); st.nextDrum += step; k++; }
+      const stepsLoop = Math.round(total);
+      while (st.nextDrum < ahead) {
+        const L = Math.floor(k / stepsLoop) % 4, pos = k % stepsLoop; let ch = pat[k % pat.length];
+        if (L === 0 && ch === 's') ch = 'h';
+        if (L === 3) ch = (pos % (ts * 4) === 0) ? 'k' : '.';
+        if ((L === 1 || L === 2) && pos >= stepsLoop - 4) ch = pos === stepsLoop - 1 ? 'k' : 's';
+        if (L === 2 && ch === '.') ch = 'h';
+        if (ch && ch !== '.') drum(st.nextDrum, ch, AUD.bus.drm);
+        st.nextDrum += step; k++;
+      }
     }
     AUD.timer = setTimeout(sched, 60);
   };
-  // asegurar loops alineados: rellenar pistas cortas con silencio
-  tracks.forEach(tr => { const len = tr.seq.reduce((a, b) => a + b[1], 0); if (len < total) tr.seq.push(['R', total - len]); });
   sched();
 };
 AUD.stop = function () { AUD.cur = null; AUD.curName = null; clearTimeout(AUD.timer); if (AUD.musicGain && AUD.ctx) { const g = AUD.musicGain; const v = g.gain.value; g.gain.cancelScheduledValues(AUD.ctx.currentTime); g.gain.setValueAtTime(0, AUD.ctx.currentTime); g.gain.setValueAtTime(v, AUD.ctx.currentTime + 0.05); } };

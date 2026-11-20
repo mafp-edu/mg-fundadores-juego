@@ -7,7 +7,7 @@ const COL = { ink: '#2a1e2e', paper: '#fffaf0', blue: '#3a5ab0', blue2: '#6a8ad8
 const UI = { layers: [], toasts: [] };
 UI.modal = () => UI.layers.length > 0;
 UI.update = dt => { const top = UI.layers[UI.layers.length - 1]; if (top && top.update) top.update(dt); UI.toasts = UI.toasts.filter(t => (t.t += dt) < t.dur); };
-UI.draw = c => { UI.layers.forEach(l => l.draw && l.draw(c)); drawToasts(c); };
+UI.draw = c => { if (G.cine && !G.cine.ui) return; UI.layers.forEach(l => l.draw && l.draw(c)); drawToasts(c); };
 UI.push = layer => new Promise(res => { layer.resolve = v => { UI.layers = UI.layers.filter(l => l !== layer); res(v); }; UI.layers.push(layer); });
 
 function rrect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h); c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath(); }
@@ -17,12 +17,24 @@ function box(c, x, y, w, h, style = 'dialog') {
   c.fillStyle = S[1]; rrect(c, x + 1.5, y + 1.5, w - 3, h - 3, 4); c.fill();
   c.strokeStyle = S[2]; c.lineWidth = 1.2; rrect(c, x + 3.5, y + 3.5, w - 7, h - 7, 3); c.stroke();
 }
+// retrato ilustrado para quien no tiene retrato propio: cara y hombros de su imagen de frente (Higgsfield)
+const PORTRAIT_CACHE = {};
+function portraitCrop(sprite) {
+  if (PORTRAIT_CACHE[sprite] !== undefined) return PORTRAIT_CACHE[sprite];
+  const C = typeof CHAR3D !== 'undefined' && CHAR3D[sprite]; const im = C && IMG[C.front];
+  if (!im) return null;   // aún no carga: se reintenta en el próximo cuadro
+  const w = im.width, h = im.height, cw = Math.min(w, h * 0.36), sx = (w - cw) / 2, sy = h * 0.01;
+  const cv = mkCanvas(128, 128), cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high';
+  cx.drawImage(im, sx, sy, cw, cw, 4, 8, 120, 120);
+  return (PORTRAIT_CACHE[sprite] = cv);
+}
 // retrato de un hablante
 function drawPortrait(c, sp, x, y, s, bg = true) {
   const S = SPEAKERS[sp] || {};
   if (bg) { c.fillStyle = '#2a1e2e'; rrect(c, x - 2, y - 2, s + 4, s + 4, 6); c.fill(); const g = c.createLinearGradient(0, y, 0, y + s); g.addColorStop(0, S.bg || '#bfe0ff'); g.addColorStop(1, shade(S.bg || '#bfe0ff', 0.82)); c.fillStyle = g; rrect(c, x, y, s, s, 5); c.fill(); }
   c.save(); rrect(c, x, y, s, s, 5); c.clip();
   if (S.img && IMG['r_' + S.img]) c.drawImage(IMG['r_' + S.img], x, y, s, s);
+  else if (S.sprite && portraitCrop(S.sprite)) c.drawImage(portraitCrop(S.sprite), x, y, s, s);
   else if (S.sprite && ART.sprites[S.sprite]) { c.imageSmoothingEnabled = false; const sc = s / 15; c.drawImage(ART.sprites[S.sprite], 0, 0, 16, 16, x + (s - 16 * sc) / 2, y + s * 0.06, 16 * sc, 16 * sc); c.imageSmoothingEnabled = true; }
   else if (S.mystery) { c.fillStyle = '#1a1424'; c.beginPath(); c.arc(x + s / 2, y + s * 0.42, s * 0.22, 0, 7); c.fill(); c.fillRect(x + s * 0.2, y + s * 0.66, s * 0.6, s * 0.4); c.fillStyle = '#fff'; c.font = FONT(s * 0.35, 1); c.textAlign = 'center'; c.fillText('?', x + s / 2, y + s * 0.55); c.textAlign = 'left'; }
   c.restore();
@@ -108,6 +120,7 @@ function choose(options, o = {}) {
 }
 function toast(text, dur = 3.2) { AUD.sfx('page'); UI.toasts.push({ text, t: 0, dur }); }
 function drawToasts(c) {
+  if (G.cine) return;
   UI.toasts.forEach((t, i) => {
     const k = Math.min(1, t.t / 0.25, (t.dur - t.t) / 0.25); c.font = FONT(10.5, 1); const w = Math.min(W - 20, c.measureText(t.text).width + 26);
     const x = W - (w + 8) * k, y = 6 + i * 22; box(c, x, y, w, 19, 'parch'); c.fillStyle = '#5a3a20'; c.fillText(t.text, x + 13, y + 13);
@@ -328,12 +341,14 @@ function drawFounderPage(c, F, x, y, w, h) {
   yy += 5; c.fillStyle = COL.red; c.font = FONT(9, 1); c.fillText('¿SABÍAS QUE…?', R0, yy); yy += 12;
   c.font = FONT(9.4); const L2 = wrapRich(c, F.fact, RW); drawRichLines(c, L2, R0, yy, 10.5, 9999, '#3a2414'); yy += L2.length * 10.5 + 6;
   if (has) { c.fillStyle = COL.red; c.font = FONT(9, 1); c.fillText('LO QUE APRENDÍ', R0, yy); yy += 12; c.font = FONT(9.4, 1); const L3 = wrapRich(c, F.lesson, RW); drawRichLines(c, L3, R0, yy, 10.5, 9999, '#1c2450'); }
+  c.fillStyle = '#9a7a5a'; c.font = FONT(8); c.textAlign = 'right'; c.fillText('Fuente de los datos: Memoria Chilena', x + w - 28, y + h - 8); c.textAlign = 'left';
   c.fillStyle = '#7a5a3a'; c.font = FONT(9); c.fillText(BOOK.cutscene ? 'A: seguir' : '◂ ▸ pasar página · B: volver', L0, y + h - 8);
   c.textAlign = 'right'; c.fillText(`${FOUNDERS.indexOf(F) + 1}`, x + w - 12, y + h - 8); c.textAlign = 'left';
 }
 
 // --------------------------------------------------------------- viaje en el tiempo
 async function travelMenu() {
+  if (typeof olvidoEnLaNave === 'function' && await olvidoEnLaNave()) return;   // El Olvido corta el paso en 1810 y 1823
   const list = DESTS.filter(d => cond(d.cond));
   if (!list.length) { await say('mg', 'La nave está apagada. Primero tengo que prepararme.'); return; }
   const opts = list.map(d => (d.map === G.mapId ? '• ' : '') + d.label).concat(['No viajar']);
@@ -347,7 +362,7 @@ async function travelMenu() {
 async function timeTravel(d) {
   G.busy++;
   AUD.sfx('warp'); await flash('#fff', 500);
-  const prev = G.scene; G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.label = d.year || ''; TRAVEL.dest = d.label;
+  const prev = G.scene; G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.intro = false; TRAVEL.label = d.year || ''; TRAVEL.dest = d.label;
   AUD.play('tiempo');
   await sleep(3600);
   await fadeOut('#fff', 300);
@@ -361,118 +376,333 @@ async function timeTravel(d) {
 const TRAVEL = { t: 0 };
 SCENES.travel = {
   update(dt) { TRAVEL.t += dt; },
+  // torbellino del tiempo en el estilo ilustrado: luz azul y dorada, reloj romano, años que pasan volando y la nave al centro
   drawLow(c) {
-    const t = TRAVEL.t; c.fillStyle = '#0a0620'; c.fillRect(0, 0, W, H);
-    for (let r = 220; r > 4; r -= 7) { const k = (Math.floor(r / 7) + Math.floor(t * 12)) % 6; c.strokeStyle = ['#ff5a7a', '#ffd04a', '#5ad0ff', '#a070ff', '#5ae08a', '#ff9a3c'][k]; c.lineWidth = 3; c.beginPath(); for (let a = 0; a < Math.PI * 2 + 0.2; a += 0.2) { const rr = r + Math.sin(a * 5 + t * 6) * 4; const x = W / 2 + Math.cos(a + t * (1 + r / 200)) * rr * 1.3, y = H / 2 + Math.sin(a + t * (1 + r / 200)) * rr * 0.8; a ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); }
-    for (let i = 0; i < 60; i++) { const a = i * 2.4 + t * 0.6, d = ((i * 37 + t * 140) % 260); c.fillStyle = '#fff'; c.fillRect(W / 2 + Math.cos(a) * d * 1.3, H / 2 + Math.sin(a) * d * 0.8, 2, 2); }
-    const m = ART.props.timemachine[Math.floor(t * 8) % 4]; c.save(); c.translate(W / 2, H / 2 + Math.sin(t * 4) * 4); c.rotate(Math.sin(t * 3) * 0.15); c.drawImage(m.c, -m.w, -m.h, m.w * 2, m.h * 2); c.restore();
+    const t = TRAVEL.t, cx = W / 2, cy = H / 2;
+    const bg = c.createRadialGradient(cx, cy, 10, cx, cy, W * 0.75); bg.addColorStop(0, '#fff3c8'); bg.addColorStop(0.18, '#f0b85a'); bg.addColorStop(0.42, '#3a5aa8'); bg.addColorStop(1, '#0c1030'); c.fillStyle = bg; c.fillRect(0, 0, W, H);
+    // espirales de luz (pinceladas suaves)
+    c.save(); c.translate(cx, cy);
+    for (let k = 0; k < 7; k++) { c.rotate(t * (0.25 + k * 0.05) + k); c.strokeStyle = k % 2 ? 'rgba(255,236,170,0.18)' : 'rgba(160,200,255,0.16)'; c.lineWidth = 10 - k; c.beginPath(); for (let a = 0; a < 11; a += 0.15) { const r = 8 + a * 15 + k * 4; c.lineTo(Math.cos(a) * r * 1.35, Math.sin(a) * r * 0.85); } c.stroke(); }
+    c.restore();
+    // reloj con números romanos que gira
+    c.save(); c.translate(cx, cy); c.rotate(-t * 0.6); c.strokeStyle = 'rgba(255,240,200,0.5)'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, 0, 104, 74, 0, 0, 7); c.stroke();
+    const R = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI']; c.fillStyle = 'rgba(255,244,214,0.75)'; c.font = FONT(9, 1); c.textAlign = 'center';
+    R.forEach((n, i) => { const a = i / 12 * Math.PI * 2 - Math.PI / 2; c.fillText(n, Math.cos(a) * 92, Math.sin(a) * 64 + 3); }); c.restore();
+    // años que pasan volando hacia afuera
+    const yrs = ['1810', '1811', '1812', '1814', '1816', '1817', '1818', '1823', '1832'];
+    c.textAlign = 'center';
+    for (let i = 0; i < 12; i++) { const k = ((t * 0.45 + i / 12) % 1), a = i * 2.39 + 0.3, d = 20 + k * 230; c.globalAlpha = Math.min(1, k * 4) * (1 - k); c.font = FONT(8 + k * 16, 1); c.fillStyle = '#fff4d0'; c.fillText(yrs[i % yrs.length], cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.8); }
+    for (let i = 0; i < 70; i++) { const k = ((t * 0.7 + i * 0.137) % 1), a = i * 2.4 + t * 0.3, d = k * 260; c.globalAlpha = (1 - k) * 0.9; c.fillStyle = i % 3 ? '#ffffff' : '#ffe680'; const z = 1 + k * 2.5; c.fillRect(cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.8, z, z); }
+    c.globalAlpha = 1; c.textAlign = 'left';
   },
   drawHi(c) {
-    const t = TRAVEL.t; const ids = FOUNDERS.map(f => f.id);
-    for (let i = 0; i < 8; i++) { const id = ids[(i + Math.floor(t)) % ids.length]; const k = ((t * 0.5 + i / 8) % 1); const a = i * 0.9 + t * 0.4; const d = k * 220; const s = 14 + k * 46; c.globalAlpha = Math.min(1, k * 3) * (1 - k); if (IMG['m_' + id]) c.drawImage(IMG['m_' + id], W / 2 + Math.cos(a) * d * 1.3 - s / 2, H / 2 + Math.sin(a) * d * 0.8 - s / 2, s, s); c.globalAlpha = 1; }
-    if (!TRAVEL.label && TRAVEL.dest) { c.textAlign = 'center'; c.font = FONT(20, 1); c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillText(TRAVEL.dest, W / 2 + 2, H - 30); c.fillStyle = '#ffe680'; c.fillText(TRAVEL.dest, W / 2, H - 32); c.textAlign = 'left'; }
-    if (TRAVEL.label) { c.textAlign = 'center'; c.font = FONT(30, 1); c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillText(TRAVEL.label, W / 2 + 2, 52); c.fillStyle = '#ffe680'; c.fillText(TRAVEL.label, W / 2, 50); c.font = FONT(12); c.fillStyle = '#fff'; c.fillText(TRAVEL.dest, W / 2, H - 22); c.textAlign = 'left'; }
+    const t = TRAVEL.t, cx = W / 2, cy = H / 2, ids = FOUNDERS.map(f => f.id);
+    const scene = TRAVEL.intro ? TRAVEL.dest : null;
+    // medallas de los fundadores girando alrededor
+    if (!scene || scene.startsWith('doce')) for (let i = 0; i < 12; i++) { const im = IMG['m_' + ids[i]]; if (!im) continue; const a = i / 12 * Math.PI * 2 + t * (scene ? 0.5 : 0.8), rx = scene ? 120 : 150, ry = scene ? 80 : 98, s = scene ? 34 : 24; c.globalAlpha = scene ? Math.min(1, t * 2) : 0.85; c.drawImage(im, cx + Math.cos(a) * rx - s / 2, cy + Math.sin(a) * ry - s / 2, s, s); }
+    c.globalAlpha = 1;
+    const glow = (r) => { const g = c.createRadialGradient(cx, cy, 4, cx, cy, r); g.addColorStop(0, 'rgba(255,250,220,0.9)'); g.addColorStop(1, 'rgba(255,250,220,0)'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2); };
+    const pic = (im, h, wob) => { if (!im) return; const w = h * im.width / im.height; c.save(); c.translate(cx, cy + Math.sin(t * 3) * 4); c.rotate(Math.sin(t * 2.2) * (wob || 0.08)); c.drawImage(im, -w / 2, -h / 2, w, h); c.restore(); };
+    if (scene && scene.startsWith('Un libro')) { glow(110); pic(IMG.portada, 130, 0.04); }
+    else if (scene && scene.startsWith('un perro')) { glow(100); pic(IMG.r_nemo, 120, 0.06); }
+    else if (scene && scene.startsWith('doce')) { glow(70); pic(IMG.logo, 96, 0.03); }
+    else { glow(90); pic(IMG.b_nave || null, 110, 0.12); if (!IMG.b_nave) { const m = ART.props.timemachine[Math.floor(t * 8) % 4]; c.save(); c.translate(cx, cy); c.drawImage(m.c, -m.w, -m.h, m.w * 2, m.h * 2); c.restore(); } }
+    // textos
+    c.textAlign = 'center';
+    if (!TRAVEL.label && TRAVEL.dest) { const y = H - 26; box(c, cx - 150, y - 20, 300, 30, 'parch'); c.font = FONT(15, 1); c.fillStyle = '#3a2414'; c.fillText(TRAVEL.dest, cx, y); }
+    if (TRAVEL.label) {
+      const k = Math.min(1, t / 0.5), sc = 0.6 + 0.4 * easeOutBack(k);
+      c.save(); c.translate(cx, 46); c.scale(sc, sc); c.font = FONT(34, 1); c.lineWidth = 6; c.strokeStyle = '#1c2450'; c.strokeText(TRAVEL.label, 0, 0); c.fillStyle = '#ffe680'; c.fillText(TRAVEL.label, 0, 0); c.restore();
+      if (TRAVEL.dest) { const y = H - 26; box(c, cx - 160, y - 20, 320, 30, 'parch'); c.font = FONT(12, 1); c.fillStyle = '#3a2414'; c.fillText(TRAVEL.dest, cx, y); }
+    }
+    c.textAlign = 'left';
   }
 };
 
-// --------------------------------------------------------------- DUELO DE IDEAS (estilo Pokémon)
+// --------------------------------------------------------------- DUELO DE IDEAS 2.0 (por turnos)
+// Menú: Argumentar (pregunta de historia) · Poderes (medallas) · Mochila · Pista (libro del tío).
+// Los rivales con «attacks» responden en su turno y bajan el ánimo. Nunca se pierde.
 const BAT = {};
+const BAT_MENU = ['Argumentar', 'Poderes', 'Mochila', 'Pista'];
+const VILLAIN_ATTACKS = [
+  { n: 'Sospecha', t: 'Te mira de arriba abajo con cara de sospecha…' },
+  { n: '¡Orden del Rey!', t: '«¡Por orden del Rey, silencio!» Su grito retumba.' },
+  { n: 'Interrogatorio', t: 'Te lanza preguntas sin parar. ¡Qué nervios!' }
+];
 function battle(opp) {
   return new Promise(res => {
-    Object.assign(BAT, { wrongs: 0, hintSaid: false, opp, res, t: 0, state: 'intro', hp: opp.hp || 3, maxHp: opp.hp || 3, mg: 3, maxMg: 3, qi: 0, qs: shuffle(opp.questions.slice()), sel: 0, msg: null, anim: null, prevScene: G.scene });
+    Object.assign(BAT, { wrongs: 0, opp, res, t: 0, state: 'intro', hp: opp.hp || 3, maxHp: opp.hp || 3, mg: 3, maxMg: 3, qi: 0, qs: shuffle(opp.questions.slice()), sel: 0, msg: null, anim: null, prevScene: G.scene, q: null, ans: null, used: {}, shield: 0, dodge: false, double: false, calm: false, turn: 0, menuSel: 0, powSel: 0 });
     G.busy++; G.scene = 'battle'; AUD.play(opp.music || 'batalla');
     battleFlow();
   });
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; }
 function batSay(text, who) { return new Promise(r => { BAT.msg = { text, who, shown: 0, r }; }); }
+function batWait(state) { BAT.state = state; return new Promise(r => BAT.pick = r); }
+function batPowers() { return POWERS.filter(p => G.medals.includes(p.medal)); }
+function batNextQuestion() {
+  const o = BAT.opp;
+  if (BAT.qi >= BAT.qs.length) { BAT.qs = shuffle(o.questions.slice()); BAT.qi = 0; }
+  const q = BAT.qs[BAT.qi++];
+  let ans = shuffle(q.a.map((t, i) => ({ t, ok: i === 0 })));
+  if (BAT.wrongs >= 2) ans = batRemoveWrong(ans, 1);
+  BAT.q = q; BAT.ans = ans; BAT.sel = 0;
+}
+function batRemoveWrong(ans, n) { let out = ans.slice(); for (let k = 0; k < n; k++) { const bad = out.filter(a => !a.ok); if (bad.length <= 1) break; out = out.filter(a => a !== bad[0]); } return out; }
+async function batHurtMg(n = 1) {
+  BAT.mg = Math.max(0, BAT.mg - n);
+  if (BAT.mg <= 0) { await batSay('MG se desanimó un poquito…'); await batSay('Pero recordó algo: «los valientes se levantan una vez más de las que se caen». ¡Ánimo recuperado!'); AUD.sfx('heal'); BAT.mg = BAT.maxMg; }
+}
+async function batEnemyTurn() {
+  const o = BAT.opp;
+  if (!o.attacks || BAT.hp <= 0) return;
+  BAT.turn++;
+  if (o.every && BAT.turn % o.every !== 0) return;
+  if (BAT.calm) { BAT.calm = false; await batSay(`${o.name} está tan tranquilo que se olvida de atacar.`); return; }
+  const list = o.attacks === true ? VILLAIN_ATTACKS : o.attacks;
+  const a = list[Math.floor(Math.random() * list.length)];
+  await batSay(`¡${o.name} usa ${a.n}!`);
+  if (BAT.dodge) { BAT.dodge = false; await batSay('¡MG lo esquiva con su disfraz! Ni la reconoció.'); return; }
+  if (BAT.shield > 0) { BAT.shield--; AUD.sfx('select'); await batSay('El refugio la protege. ¡No le pasó nada!'); return; }
+  if (o.boss || o.dodge) {   // los jefes atacan de verdad: hay que esquivar
+    await batSay(a.t + ' ¡Esquiva con ◀ ▶!');
+    const hits = await batDodge();
+    if (!hits) { AUD.sfx('correct'); await batSay('¡MG lo esquivó todo! Ni un rasguño.'); return; }
+    await batSay(hits > 2 ? '¡Uf! Le llegaron varios golpes…' : '¡Auch! Uno le llegó.'); await batHurtMg(1); return;
+  }
+  AUD.sfx('wrong'); BAT.anim = { kind: 'hitMg', t: 0 }; await sleep(500); BAT.anim = null;
+  await batSay(a.t);
+  await batHurtMg(1);
+}
+// fase de esquivar: caen proyectiles y MG se mueve abajo con izquierda/derecha
+const DODGE_PROJ = { sanbruno: 'papel', sanbruno2: 'papel', marco: 'papel', rey2: 'papel', rey4: 'papel', osorio: 'bala', rey3: 'bala', chacabuco: 'bala', espiritu: 'tinta', olvido: 'tinta', olvido1: 'tinta', olvido2: 'tinta', olvido3: 'tinta' };
+// remolino al entrar a un duelo
+function batSwirl(c, t) {
+  const k = 1 - t / 0.75, cx = W / 2, cy = H / 2, R = Math.hypot(W, H) * 0.6 * k;
+  c.save(); c.translate(cx, cy); c.rotate(t * 7);
+  for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? 'rgba(20,14,40,' + (0.85 * k) + ')' : 'rgba(255,236,160,' + (0.5 * k) + ')'; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, i * Math.PI / 6, (i + 1) * Math.PI / 6); c.closePath(); c.fill(); }
+  c.restore();
+}
+function batDodge() {
+  const o = BAT.opp; const key = Object.keys(OPPONENTS).find(k => OPPONENTS[k] === o);
+  BAT.dg = { t: 0, dur: o.boss ? 5.5 : 4, x: W / 2, items: [], hits: 0, inv: 0, next: 0.3, kind: DODGE_PROJ[key] || 'papel', rate: o.boss ? 0.32 : 0.45 };
+  BAT.state = 'dodge';
+  return new Promise(r => BAT.dg.done = r);
+}
+function batDodgeUpdate(dt) {
+  const D = BAT.dg; if (!D) return; D.t += dt; D.inv = Math.max(0, D.inv - dt);
+  const v = (INP.held.left ? -1 : 0) + (INP.held.right ? 1 : 0); D.x = clamp(D.x + v * 190 * dt, 24, W - 24);
+  if (window.AUTO_DODGE) { const nearest = D.items.filter(q => q.y > H - 110).sort((a, b) => b.y - a.y)[0]; if (nearest && Math.abs(nearest.x - D.x) < 26) D.x = clamp(D.x + (nearest.x < D.x ? 1 : -1) * 190 * dt, 24, W - 24); }
+  D.next -= dt; if (D.next <= 0 && D.t < D.dur - 0.8) { D.next = D.rate * (0.6 + Math.random() * 0.8); D.items.push({ x: 20 + Math.random() * (W - 40), y: -14, vy: 95 + Math.random() * 70, r: Math.random() * 6 }); }
+  for (const q of D.items) { q.y += q.vy * dt; q.r += dt * 4; if (!q.hit && D.inv <= 0 && Math.abs(q.x - D.x) < 17 && q.y > H - 64 && q.y < H - 26) { q.hit = true; D.hits++; D.inv = 0.6; AUD.sfx('hit'); BAT.anim = { kind: 'hitMg', t: 0 }; } }
+  D.items = D.items.filter(q => q.y < H + 20 && !q.hit);
+  if (D.t >= D.dur) { const r = D.done, h = D.hits; BAT.dg = null; BAT.state = 'anim'; BAT.anim = null; r(h); }
+}
+function batDodgeDraw(c) {
+  const D = BAT.dg; if (!D) return;
+  c.fillStyle = 'rgba(14,10,30,0.35)'; c.fillRect(0, 0, W, H);
+  c.fillStyle = 'rgba(255,255,255,0.12)'; c.fillRect(0, H - 70, W, 50);
+  for (const q of D.items) {
+    c.save(); c.translate(q.x, q.y); c.rotate(q.r);
+    if (D.kind === 'bala') { c.fillStyle = '#1a1a22'; c.beginPath(); c.arc(0, 0, 8, 0, 7); c.fill(); c.fillStyle = '#6a6a7a'; c.beginPath(); c.arc(-3, -3, 2.5, 0, 7); c.fill(); }
+    else if (D.kind === 'tinta') { c.fillStyle = '#2a0a3a'; c.beginPath(); c.ellipse(0, 0, 9, 7, 0, 0, 7); c.fill(); c.fillStyle = '#7a3a9a'; c.beginPath(); c.arc(-3, -2, 2, 0, 7); c.fill(); }
+    else { c.fillStyle = '#fff8e4'; c.fillRect(-8, -10, 16, 20); c.strokeStyle = '#7a5a3a'; c.strokeRect(-8, -10, 16, 20); c.fillStyle = '#c8202a'; c.fillRect(-5, -6, 10, 2); c.fillStyle = '#8a7a6a'; for (let k = 0; k < 3; k++) c.fillRect(-5, -1 + k * 3, 10, 1); }
+    c.restore();
+  }
+  const im = IMG.r_mg; const blink = D.inv > 0 && Math.floor(D.t * 14) % 2;
+  if (!blink) { if (im) { c.save(); c.beginPath(); c.arc(D.x, H - 44, 15, 0, 7); c.clip(); c.drawImage(im, D.x - 15, H - 59, 30, 30); c.restore(); } c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.arc(D.x, H - 44, 15, 0, 7); c.stroke(); }
+  c.textAlign = 'center'; c.font = FONT(11, 1); c.fillStyle = '#fff'; c.fillText('¡Esquiva con ◀ ▶!', W / 2, 22);
+  c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(W / 2 - 50, 30, 100 * (1 - D.t / D.dur), 4); c.textAlign = 'left';
+}
+async function batUsePower(p) {
+  BAT.used[p.id] = true;
+  AUD.sfx('heal'); BAT.anim = { kind: 'power', t: 0, col: p.col || '#ffe060' }; await sleep(600); BAT.anim = null;
+  await batSay(`¡MG usa ${p.name}! (${FOUNDERS.find(f => f.id === p.medal).short})`);
+  const fx = p.fx;
+  if (fx === 'dmg') { AUD.sfx('hit'); BAT.hp = Math.max(0, BAT.hp - 1); await batSay(p.say || '¡La DUDA del rival baja!'); }
+  if (fx === 'fifty') { if (!BAT.q) batNextQuestion(); BAT.ans = batRemoveWrong(BAT.ans, 2); await batSay(p.say || 'Ahora la próxima pregunta tiene solo dos respuestas.'); }
+  if (fx === 'double') { BAT.double = true; await batSay(p.say || '¡El próximo acierto vale doble!'); }
+  if (fx === 'heal') { BAT.mg = BAT.maxMg; await batSay(p.say || '¡Ánimo al máximo!'); }
+  if (fx === 'shield') { BAT.shield = 2; await batSay(p.say || 'Un escudo la protege de los próximos dos ataques.'); }
+  if (fx === 'healshield') { BAT.mg = BAT.maxMg; BAT.shield = Math.max(BAT.shield, 1); await batSay(p.say || 'Ánimo al máximo y un escudo para el próximo ataque.'); }
+  if (fx === 'dodge') { BAT.dodge = true; await batSay(p.say || 'Con el disfraz puesto, esquivará el próximo ataque.'); }
+  if (fx === 'calm') { BAT.calm = true; await batSay(p.say || 'El rival se calma y perderá su próximo turno.'); }
+}
 async function battleFlow() {
   const o = BAT.opp;
   await sleep(700);
   await batSay(o.intro || `¡${o.name} quiere un Duelo de Ideas!`);
   if (o.taunt) await batSay(o.taunt, o.name);
-  await batSay('Responde bien para convencer. ¡Cada respuesta correcta baja su DUDA!');
+  if (!G.flags.tut_batalla2) {
+    G.flags.tut_batalla2 = true;
+    await batSay('En cada turno elige: *Argumentar* (responder una pregunta), *Poderes* (de tus medallas), *Mochila* o *Pista*.');
+    await batSay('Cada respuesta correcta baja la DUDA del rival. ¡Si llega a cero, lo convenciste!');
+  }
   while (BAT.hp > 0) {
-    if (BAT.qi >= BAT.qs.length) { BAT.qs = shuffle(o.questions.slice()); BAT.qi = 0; }
-    const q = BAT.qs[BAT.qi++];
-    let ans = shuffle(q.a.map((t, i) => ({ t, ok: i === 0 })));
-    if ((BAT.wrongs || 0) >= 2) { const bad = ans.filter(a => !a.ok); ans = ans.filter(a => a !== bad[0]); if (!BAT.hintSaid) { BAT.hintSaid = true; await batSay('Nemo olfatea la pregunta… ¡y descarta una respuesta incorrecta! Ahora quedan tres.'); } }
-    BAT.state = 'ask'; BAT.q = q; BAT.ans = ans; BAT.sel = 0;
-    const pick = await new Promise(r => BAT.pick = r);
+    if (!BAT.q) batNextQuestion();
+    BAT.menuSel = BAT.menuSel || 0;
+    const act = await batWait('menu');
+    if (act === 1) { // poderes
+      const pw = batPowers();
+      if (!pw.length) { await batSay('Todavía no tienes medallas con poderes. ¡Cada fundador que conozcas te dará uno!'); continue; }
+      BAT.powSel = 0;
+      const k = await batWait('powers');
+      if (k === 'back') continue;
+      const p = pw[k];
+      if (BAT.used[p.id]) { await batSay(`Ya usaste ${p.name} en este duelo.`); continue; }
+      await batUsePower(p);
+      if (BAT.hp <= 0) break;
+      if (p.fx !== 'fifty') await batEnemyTurn();
+      continue;
+    }
+    if (act === 2) { const ok = await useBattleItem(); if (ok) await batEnemyTurn(); continue; }
+    if (act === 3) { // pista: el libro del tío descarta una respuesta (no gasta el turno)
+      if (BAT.ans.length <= 2) await batSay('El libro ya no puede ayudarte más con esta pregunta. ¡Tú puedes!');
+      else { BAT.ans = batRemoveWrong(BAT.ans, 1); AUD.sfx('select'); await batSay('El libro del tío brilla… ¡y una respuesta equivocada desaparece!'); }
+      BAT.sel = 0;
+    }
+    // argumentar
+    const pick = await batWait('ask');
+    if (pick === 'back') continue;
     BAT.state = 'anim';
-    if (pick === 'item') { await useBattleItem(); continue; }
-    if (ans[pick].ok) {
-      AUD.sfx('correct'); BAT.anim = { kind: 'hitOpp', t: 0 }; await sleep(500); AUD.sfx('hit'); BAT.hp--; await sleep(400);
-      await batSay(['¡Argumento convincente!', '¡Muy bien pensado!', '¡Exacto!', '¡Eso es!'][Math.floor(Math.random() * 4)] + (q.ok ? ' ' + q.ok : ''));
-      if (o.onHit) { const s = o.onHit(BAT.hp); if (s) await batSay(s.text, s.who); }
+    const q = BAT.q, a = BAT.ans[pick]; BAT.q = null;
+    if (a.ok) {
+      const dmg = BAT.double ? 2 : 1; BAT.double = false;
+      AUD.sfx('correct'); BAT.anim = { kind: 'hitOpp', t: 0 }; await sleep(500); AUD.sfx('hit'); BAT.hp = Math.max(0, BAT.hp - dmg); await sleep(400);
+      await batSay((dmg > 1 ? '¡Golpe doble de ideas! ' : '') + ['¡Argumento convincente!', '¡Muy bien pensado!', '¡Exacto!', '¡Eso es!'][Math.floor(Math.random() * 4)] + (q.ok ? ' ' + q.ok : ''));
+      if (o.onHit && BAT.hp > 0) { const s = o.onHit(BAT.hp); if (s) await batSay(s.text, s.who); }
     } else {
-      AUD.sfx('wrong'); BAT.wrongs = (BAT.wrongs || 0) + 1; BAT.anim = { kind: 'hitMg', t: 0 }; await sleep(600); BAT.mg--;
-      await batSay('Mmm… no era así. ' + (q.ok || ''));
-      if (BAT.mg <= 0) { await batSay('MG se desanimó un poquito…'); await batSay('Pero recordó algo: «los valientes se levantan una vez más de las que se caen». ¡Ánimo recuperado!'); AUD.sfx('heal'); BAT.mg = BAT.maxMg; }
+      AUD.sfx('wrong'); BAT.wrongs++; BAT.anim = { kind: 'hitMg', t: 0 }; await sleep(600);
+      const right = BAT.ans.find(x => x.ok);
+      await batSay('Mmm… no era así. La respuesta correcta es: *' + (right ? right.t : q.a[0]) + '*. ' + (q.ok || ''));
+      await batHurtMg(1);
+      if (BAT.wrongs === 2) await batSay('Consejo de Nemo: desde ahora, cada pregunta trae una respuesta equivocada menos. Y la *Pista* del libro siempre ayuda.');
     }
     BAT.anim = null;
+    if (BAT.hp > 0) await batEnemyTurn();
   }
   BAT.state = 'win'; AUD.stop();
   await batSay(o.lose || `¡${o.name} quedó convencido!`, o.name);
-  AUD.jingle('victoria'); await batSay('¡MG ganó el Duelo de Ideas!');
+  AUD.jingle('victoria'); await batSay(o.winText || '¡MG ganó el Duelo de Ideas!');
   await fadeOut('#000', 250); G.scene = 'world'; G.busy--; if (G.map && G.map.def.music) AUD.play(typeof G.map.def.music === 'function' ? G.map.def.music() : G.map.def.music); await fadeIn(250);
   BAT.res(true);
 }
 async function useBattleItem() {
   const foods = Object.keys(G.items).filter(id => ITEMS[id]?.food);
-  if (!foods.length) { await batSay('No tienes nada para comer en la mochila.'); return; }
-  if (BAT.mg >= BAT.maxMg) { await batSay('¡MG tiene todo el ánimo del mundo! Mejor guardar la comida.'); return; }
-  const id = foods[0]; takeItem(id); BAT.mg = Math.min(BAT.maxMg, BAT.mg + 1); AUD.sfx('heal');
+  if (!foods.length) { await batSay('No tienes nada para comer en la mochila. ¡Los vendedores y los amigos a veces regalan algo!'); return false; }
+  if (BAT.mg >= BAT.maxMg) { await batSay('¡MG tiene todo el ánimo del mundo! Mejor guardar la comida.'); return false; }
+  const id = foods[0]; takeItem(id); BAT.mg = Math.min(BAT.maxMg, BAT.mg + 2); AUD.sfx('heal');
   await batSay(`MG comió ${ITEMS[id].name.toLowerCase()}. ¡Ñami! Recuperó ánimo.`);
+  return true;
 }
+function batMoveGrid(n) {
+  let s = BAT.sel;
+  if (INP.pressed.right && s % 2 === 0 && s + 1 < n) s++;
+  if (INP.pressed.left && s % 2 === 1) s--;
+  if (INP.pressed.down && s + 2 < n) s += 2;
+  if (INP.pressed.up && s - 2 >= 0) s -= 2;
+  if (s !== BAT.sel) { BAT.sel = s; AUD.sfx('move'); }
+}
+function batFx(c) {
+  const t = BAT.t;
+    if (BAT.anim && BAT.anim.kind === 'hitOpp' && BAT.anim.t > 0.3 && BAT.anim.t < 0.9) { for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const r = (BAT.anim.t - 0.3) * 80; c.fillStyle = ['#ffe060', '#fff', '#a0f0ff'][i % 3]; c.fillRect(286 + Math.cos(a) * r, batFeet() - 40 + Math.sin(a) * r * 0.7, 3, 3); } }
+    if (BAT.anim && BAT.anim.kind === 'power') { const k = BAT.anim.t / 0.6; for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + k * 3; const r = 10 + k * 50; c.fillStyle = i % 2 ? BAT.anim.col : '#fff'; c.fillRect(96 + Math.cos(a) * r, 150 + Math.sin(a) * r * 0.8, 3, 3); } }
+    if (BAT.shield > 0) { c.strokeStyle = 'rgba(140,220,255,' + (0.5 + Math.sin(t * 4) * 0.2) + ')'; c.lineWidth = 2; c.beginPath(); c.ellipse(96, 158, 40, 52, 0, 0, 7); c.stroke(); }
+}
+// fondo de combate según el lugar (imágenes en assets/fondos)
+const BAT_BG = { mendoza: 'maipu', cordillera: 'maipu', stgo1810: 'consulado', cabildo: 'consulado', alameda1814: 'alameda', casacarrera: 'alameda', stgo1816: 'reconquista', casa_agueda: 'reconquista', casa_luisa: 'reconquista', hacienda: 'campo', comedor: 'campo', campo: 'campo', cueva: 'campo', chillan: 'chillan', maipu: 'maipu', monte: 'monte' };
+// altura de los pies del rival (en la pantalla de 256 px) según dónde empieza el piso de cada fondo
+const BAT_FEET = { consulado: 191, alameda: 186, reconquista: 188, campo: 186, chillan: 188, maipu: 184, monte: 191, espiritu: 191 };   // suelo de cada fondo, bajo el rival
+function batKey() { const o = BAT.opp; return (o && o.bg) || BAT_BG[G.mapId]; }
+// dibujos que miran hacia la derecha: en el duelo se reflejan para que el rival mire a MG (que está a la izquierda)
+const ART_MIRA_DER = new Set(['v_dudoso', 'v_osorio', 'v_sanbruno']);
+function batFeet() { const k = batKey(); return (k && IMG['bf_' + k] && BAT_FEET[k]) || 118; }
+function batBg() { const o = BAT.opp; const k = (o && o.bg) || BAT_BG[G.mapId]; return k ? IMG['bf_' + k] : null; }
 SCENES.battle = {
   update(dt) {
     BAT.t += dt; if (BAT.anim) BAT.anim.t += dt;
+    if (BAT.state === 'dodge') { batDodgeUpdate(dt); return; }
     if (BAT.msg) { const m = BAT.msg; const L = m.text.length; if (m.shown < L) { m.shown = Math.min(L, m.shown + dt * 60 * (G.settings.textSpeed || 1)); if (Math.floor(m.shown) % 3 === 0) AUD.sfx('blip'); if (pressedAny('a', 'b') && m.shown > 2) m.shown = L; } else if (pressedAny('a', 'b')) { AUD.sfx('blip'); const r = m.r; BAT.msg = null; r(); } return; }
-    if (BAT.state === 'ask') {
-      const n = BAT.ans.length;
-      if (INP.pressed.right && BAT.sel % 2 === 0 && BAT.sel + 1 < n) { BAT.sel++; AUD.sfx('move'); }
-      if (INP.pressed.left && BAT.sel % 2 === 1) { BAT.sel--; AUD.sfx('move'); }
-      if (INP.pressed.down && BAT.sel + 2 < n) { BAT.sel += 2; AUD.sfx('move'); }
-      if (INP.pressed.up && BAT.sel - 2 >= 0) { BAT.sel -= 2; AUD.sfx('move'); }
-      if (INP.pressed.a) { AUD.sfx('select'); const p = BAT.pick; BAT.pick = null; p && p(BAT.sel); }
-      else if (INP.pressed.b || INP.pressed.start) { const p = BAT.pick; BAT.pick = null; p && p('item'); }
+    const done = v => { const p = BAT.pick; BAT.pick = null; if (p) p(v); };
+    if (!BAT.pick) return;
+    if (BAT.state === 'menu') {
+      BAT.sel = BAT.menuSel; batMoveGrid(4); BAT.menuSel = BAT.sel;
+      if (INP.pressed.a) { AUD.sfx('select'); BAT.sel = 0; done(BAT.menuSel); }
+    } else if (BAT.state === 'ask') {
+      batMoveGrid(BAT.ans.length);
+      if (INP.pressed.a) { AUD.sfx('select'); done(BAT.sel); }
+      else if (INP.pressed.b || INP.pressed.start) { AUD.sfx('blip'); done('back'); }
+    } else if (BAT.state === 'powers') {
+      const n = batPowers().length; BAT.sel = BAT.powSel; batMoveGrid(n); BAT.powSel = BAT.sel;
+      if (INP.pressed.a) { AUD.sfx('select'); done(BAT.powSel); }
+      else if (INP.pressed.b || INP.pressed.start) { AUD.sfx('blip'); done('back'); }
     }
   },
   drawLow(c) {
     const t = BAT.t; const o = BAT.opp;
     const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, o.sky || '#a8d8ff'); g.addColorStop(0.55, o.sky2 || '#e8f4ff'); g.addColorStop(0.56, o.ground || '#a8d878'); g.addColorStop(1, shade(o.ground || '#a8d878', 0.8)); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    if (o.boss) { for (let i = 0; i < 30; i++) { const x = (i * 53 + t * 30 * (i % 3 + 1)) % (W + 40) - 20, y = (i * 29) % 140; c.fillStyle = 'rgba(255,240,200,0.7)'; c.save(); c.translate(x, y); c.rotate(t + i); c.fillRect(-4, -5, 8, 10); c.restore(); } }
+    if (typeof drawBattleBackdrop === 'function') drawBattleBackdrop(c, o, t);
+    if (o.boss) { for (let i = 0; i < 30; i++) { const x = (i * 53 + t * 30 * (i % 3 + 1)) % (W + 40) - 20, y = (i * 29) % 140; c.fillStyle = o.villain ? 'rgba(120,60,160,0.55)' : 'rgba(255,240,200,0.7)'; c.save(); c.translate(x, y); c.rotate(t + i); c.fillRect(-4, -5, 8, 10); c.restore(); } }
     c.fillStyle = shade(o.ground || '#a8d878', 0.7); c.beginPath(); c.ellipse(286, 112, 62, 13, 0, 0, 7); c.fill();
     c.fillStyle = shade(o.ground || '#a8d878', 0.75); c.beginPath(); c.ellipse(96, 196, 74, 15, 0, 0, 7); c.fill();
     const intro = Math.min(1, t / 0.6);
-    // oponente (de frente)
     let ox = 286 - 24 + (1 - intro) * 200, oy = 112 - 66;
     if (BAT.anim && BAT.anim.kind === 'hitOpp') { ox += Math.sin(BAT.anim.t * 50) * 3; }
-    if (BAT.state === 'win') oy += Math.min(30, (t % 100) * 0);
-    const os = ART.sprites[o.sprite]; if (os) { c.imageSmoothingEnabled = false; if (!(BAT.anim && BAT.anim.kind === 'hitOpp' && Math.floor(BAT.anim.t * 16) % 2)) c.drawImage(os, 0, 0, 16, 24, ox, oy, 48, 72); }
-    // MG de espaldas
-    let mx = 96 - 30 - (1 - intro) * 200, my = 196 - 84;
-    if (BAT.anim && BAT.anim.kind === 'hitOpp' && BAT.anim.t < 0.3) mx += Math.sin(BAT.anim.t / 0.3 * Math.PI) * 18;
-    if (BAT.anim && BAT.anim.kind === 'hitMg') mx += Math.sin(BAT.anim.t * 50) * 3;
-    const ms = ART.sprites[G.outfit]; if (ms) c.drawImage(ms, 0, 24, 16, 24, mx, my, 60, 90);
-    if (BAT.anim && BAT.anim.kind === 'hitOpp' && BAT.anim.t > 0.3 && BAT.anim.t < 0.9) { for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const r = (BAT.anim.t - 0.3) * 80; c.fillStyle = ['#ffe060', '#fff', '#a0f0ff'][i % 3]; c.fillRect(286 + Math.cos(a) * r, 80 + Math.sin(a) * r * 0.7, 3, 3); } }
+    BAT.ox = ox; BAT.oy = oy;
+    if (!batBg()) batFx(c);
   },
   drawHi(c) {
     const o = BAT.opp;
-    // tarjetas de estado
-    box(c, 14, 14, 150, 40); c.fillStyle = COL.ink; c.font = FONT(12, 1); c.fillText(o.name, 24, 31);
+    const bg = batBg();
+    if (bg) {
+      const t = BAT.t; c.drawImage(bg, Math.sin(t * 0.3) * 2 - 3, 0, W + 6, H);
+      c.fillStyle = 'rgba(20,12,30,0.28)'; c.beginPath(); c.ellipse(286, batFeet() - 2, 46, 8, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(96, 194, 60, 10, 0, 0, 7); c.fill();
+      if (o.villain) { c.fillStyle = 'rgba(30,10,40,0.18)'; c.fillRect(0, 0, W, H); }
+    }
+    const mgArt = IMG[G.outfit === 'mg_casa' ? 'v_mg_casa_espalda' : 'v_mg_espalda'];
+    // sprites agrandados 4× con Scale2x (más nítidos que el zoom de píxeles)
+    { const intro = Math.min(1, BAT.t / 0.6); c.imageSmoothingEnabled = false;
+      const os = ART.sprites[o.sprite]; const blink = BAT.anim && BAT.anim.kind === 'hitOpp' && Math.floor(BAT.anim.t * 16) % 2;
+      if (os && !(o.art && IMG[o.art]) && !blink) c.drawImage(dsSprite(os, 0, 0, 16, 24, 2), BAT.ox || 262, BAT.oy || 46, 48, 72);
+      let mx = 96 - 30 - (1 - intro) * 200, my = 196 - 84;
+      if (BAT.anim && BAT.anim.kind === 'hitOpp' && BAT.anim.t < 0.3) mx += Math.sin(BAT.anim.t / 0.3 * Math.PI) * 18;
+      if (BAT.anim && BAT.anim.kind === 'hitMg') mx += Math.sin(BAT.anim.t * 50) * 3;
+      if (mgArt) { c.imageSmoothingEnabled = true; const ih = 120, iw = ih * mgArt.width / mgArt.height; c.drawImage(mgArt, mx + 30 - iw / 2, 197 - ih, iw, ih); }
+      else { const ms = ART.sprites[G.outfit]; if (ms) c.drawImage(dsSprite(ms, 0, 24, 16, 24, 2), mx, my, 60, 90); }
+      c.imageSmoothingEnabled = true; }
+    if (o.art && IMG[o.art]) {
+      const im = IMG[o.art]; const intro = Math.min(1, BAT.t / 0.6); const ih = (o.artH || 104) * (batFeet() > 130 ? 0.9 : 1), iw = ih * im.width / im.height;
+      let ox = 286 - iw / 2 + (1 - intro) * 200; if (BAT.anim && BAT.anim.kind === 'hitOpp') ox += Math.sin(BAT.anim.t * 50) * 3;
+      if (!(BAT.anim && BAT.anim.kind === 'hitOpp' && Math.floor(BAT.anim.t * 16) % 2)) { if (ART_MIRA_DER.has(o.art)) { c.save(); c.translate(ox + iw, 0); c.scale(-1, 1); c.drawImage(im, 0, batFeet() - ih, iw, ih); c.restore(); } else c.drawImage(im, ox, batFeet() - ih, iw, ih); }
+    }
+    if (bg) batFx(c);
+    box(c, 14, 14, 150, 40); c.fillStyle = COL.ink; let fs = 12; c.font = FONT(fs, 1); while (c.measureText(o.name).width > 132 && fs > 8) { fs -= 0.5; c.font = FONT(fs, 1); } c.fillText(o.name, 24, 31);
     c.font = FONT(9, 1); c.fillStyle = '#7a4a28'; c.fillText('DUDA', 24, 45); bar(c, 52, 39, 100, 7, BAT.hp / BAT.maxHp, '#c84a6a');
-    box(c, W - 168, 140, 156, 42); c.fillStyle = COL.ink; c.font = FONT(12, 1); c.fillText('MG', W - 158, 157); c.font = FONT(9, 1); c.fillStyle = '#7a4a28'; c.fillText('ÁNIMO', W - 158, 172);
-    for (let i = 0; i < BAT.maxMg; i++) heart(c, W - 118 + i * 16, 165, i < BAT.mg);
-    // panel inferior
+    // recuadro de MG arriba a la derecha: así el rival puede pararse en el suelo del fondo sin que nada le tape los pies
+    const my0 = 14; box(c, W - 168, my0, 156, 28); c.fillStyle = COL.ink; c.font = FONT(12, 1); c.fillText('MG', W - 158, my0 + 19); c.font = FONT(9, 1); c.fillStyle = '#7a4a28'; c.fillText('ÁNIMO', W - 130, my0 + 19);
+    for (let i = 0; i < BAT.maxMg; i++) heart(c, W - 84 + i * 16, my0 + 10, i < BAT.mg);
+    const tags = []; if (BAT.shield) tags.push('ESCUDO ' + BAT.shield); if (BAT.dodge) tags.push('DISFRAZ'); if (BAT.double) tags.push('×2'); if (BAT.calm) tags.push('RIVAL CALMADO');
+    if (tags.length) { c.font = FONT(8, 1); c.fillStyle = '#1c5a8a'; c.textAlign = 'right'; c.fillText(tags.join(' · '), W - 16, 56); c.textAlign = 'left'; }
     const py = H - 62; box(c, 6, py, W - 12, 56);
-    if (BAT.msg) { c.font = FONT(12.5); c.fillStyle = COL.ink; const L = wrapRich(c, BAT.msg.text, W - 40); drawRichLines(c, L, 18, py + 19, 15, Math.floor(BAT.msg.shown)); if (BAT.msg.who) { c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText(BAT.msg.who.toUpperCase(), 18, py - 3); } }
-    else if (BAT.state === 'ask') {
-      // pregunta arriba
+    if (BAT.msg) { c.font = FONT(12.5); c.fillStyle = COL.ink; const L = wrapRich(c, BAT.msg.text, W - 40); drawRichLines(c, L, 18, py + 19, 15, Math.floor(BAT.msg.shown)); if (BAT.msg.who) { c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText(BAT.msg.who.toUpperCase(), 18, py - 3); } return; }
+    if (BAT.state === 'dodge') { batDodgeDraw(c); return; }
+    if (!BAT.pick) return;
+    if (BAT.state === 'menu') {
+      c.font = FONT(12.5, 1); c.fillStyle = COL.ink; c.fillText('¿Qué hará MG?', 18, py + 22);
+      c.font = FONT(9); c.fillStyle = '#8a7a8a'; c.fillText(['Responde una pregunta de historia', 'Usa el poder de una medalla', 'Come algo para recuperar ánimo', 'El libro descarta una respuesta'][BAT.menuSel], 18, py + 42);
+      const bx = W / 2 + 4, bw = (W / 2 - 22) / 2;
+      BAT_MENU.forEach((m, i) => { const ax = bx + (i % 2) * bw, ay = py + 22 + Math.floor(i / 2) * 20; const sel = BAT.menuSel === i; if (sel) { c.fillStyle = 'rgba(200,50,58,0.12)'; rrect(c, ax - 4, ay - 13, bw - 4, 18, 4); c.fill(); } c.font = FONT(11.5, sel ? 1 : 0); c.fillStyle = sel ? COL.red : COL.ink; c.fillText((sel ? '▸ ' : '  ') + m, ax, ay); });
+    } else if (BAT.state === 'ask') {
       box(c, 6, py - 46, W - 12, 42, 'parch'); c.font = FONT(11.5, 1); c.fillStyle = '#3a2414'; const L = wrapRich(c, BAT.q.q, W - 40); drawRichLines(c, L.slice(0, 2), 18, py - 28, 14, 9999, '#3a2414');
-      c.font = FONT(11); BAT.ans.forEach((a, i) => { const ax = 20 + (i % 2) * ((W - 24) / 2), ay = py + 20 + Math.floor(i / 2) * 20; const sel = BAT.sel === i; if (sel) { c.fillStyle = 'rgba(200,50,58,0.12)'; rrect(c, ax - 6, ay - 13, (W - 24) / 2 - 8, 18, 4); c.fill(); } c.fillStyle = sel ? COL.red : COL.ink; const txt = a.t; c.fillText((sel ? '▸ ' : '  ') + txt, ax, ay); });
-      c.font = FONT(8.5); c.fillStyle = '#8a7a8a'; c.textAlign = 'right'; c.fillText('B: comer algo de la mochila', W - 18, py + 51); c.textAlign = 'left';
+      BAT.ans.forEach((a, i) => { const ax = 20 + (i % 2) * ((W - 24) / 2), ay = py + 20 + Math.floor(i / 2) * 20; const sel = BAT.sel === i; if (sel) { c.fillStyle = 'rgba(200,50,58,0.12)'; rrect(c, ax - 6, ay - 13, (W - 24) / 2 - 8, 18, 4); c.fill(); } c.fillStyle = sel ? COL.red : COL.ink; let f2 = 11; c.font = FONT(f2); const txt = (sel ? '▸ ' : '  ') + a.t; while (c.measureText(txt).width > (W - 24) / 2 - 14 && f2 > 7.5) { f2 -= 0.5; c.font = FONT(f2); } c.fillText(txt, ax, ay); });
+      c.font = FONT(8.5); c.fillStyle = '#8a7a8a'; c.textAlign = 'right'; c.fillText('B: volver al menú', W - 18, py + 51); c.textAlign = 'left';
+    } else if (BAT.state === 'powers') {
+      const pw = batPowers(); const rows = Math.ceil(pw.length / 2);
+      const bh = 16 + rows * 18; const by = py - bh - 4;
+      box(c, 6, by, W - 12, bh, 'parch');
+      pw.forEach((p, i) => { const ax = 20 + (i % 2) * ((W - 24) / 2), ay = by + 18 + Math.floor(i / 2) * 18; const sel = BAT.powSel === i; const used = BAT.used[p.id]; if (sel) { c.fillStyle = 'rgba(200,50,58,0.12)'; rrect(c, ax - 6, ay - 13, (W - 24) / 2 - 8, 17, 4); c.fill(); } if (IMG['m_' + p.medal]) c.drawImage(IMG['m_' + p.medal], ax + 6, ay - 12, 14, 14); c.font = FONT(10.5, sel ? 1 : 0); c.fillStyle = used ? '#b0a0a0' : sel ? COL.red : '#3a2414'; c.fillText(p.name + (used ? ' (usado)' : ''), ax + 24, ay); if (sel) { c.fillText('▸', ax - 2, ay); } });
+      const p = pw[BAT.powSel]; c.font = FONT(11); c.fillStyle = COL.ink; const L = wrapRich(c, p ? `${p.name}: ${p.desc}` : '', W - 40); drawRichLines(c, L.slice(0, 2), 18, py + 20, 14, 9999);
+      c.font = FONT(8.5); c.fillStyle = '#8a7a8a'; c.textAlign = 'right'; c.fillText('A: usar · B: volver', W - 18, py + 51); c.textAlign = 'left';
     }
   }
 };
@@ -548,18 +778,86 @@ function timeline(cards) {
 
 // --------------------------------------------------------------- PORTADA
 const TITLE = { sel: 0, t: 0 };
+function titleOpts(save) { return save ? ['Continuar', 'Nueva aventura', 'Instrucciones'] : ['Nueva aventura', 'Instrucciones']; }
+// --------------------------------------------------------------- INSTRUCCIONES (desde la portada)
+// Dos partes: «La historia hasta aquí» (sin revelar el final) y «Cómo jugar».
+const INSTR_PAGES = [
+  { part: 'La historia hasta aquí', title: 'MG y Nemo', imgs: ['r_mg', 'r_nemo'], text: ['MG tiene ocho años y una imaginación gigante.', 'Su mejor amigo es *Nemo*, un beagle curioso con un collar que brilla.', 'Viven en Santiago con mamá, papá y el pequeño Max.'] },
+  { part: 'La historia hasta aquí', title: 'El regalo del tío', imgs: ['portada'], text: ['Para su cumpleaños, su tío le regaló un libro: *Pequeños Patriotas: Nuestros fundadores*.', 'Y también su *bitácora*, llena de mapas y notas secretas.', '«Cuando el libro tenga las *doce firmas*… pasan cosas mágicas», le dijo.'] },
+  { part: 'La historia hasta aquí', title: 'La gran misión', medals: true, text: ['Un día, la nave del tiempo de mamá se encendió… ¡y Nemo desapareció en el pasado!', 'Para traerlo de vuelta, MG viajará por la historia de Chile, conocerá a *doce fundadores* y ganará sus medallas.', 'Pero cuidado: los soldados del Rey y un villano misterioso no quieren que lo logre…'] },
+  { part: 'Cómo jugar', title: 'Controles', keys: true, text: [] },
+  { part: 'Cómo jugar', title: 'El libro y las medallas', imgs: ['m_mateo', 'm_javiera', 'm_rodriguez'], text: ['Abre el *Libro* con M, Tab o el botón LIBRO: ahí están los fundadores, tus medallas, la bitácora con la pista, la mochila y las opciones.', 'Cada fundador firma su página y te da una *medalla*.', 'Cada medalla tiene un *poder* para los duelos y para el camino final.'] },
+  { part: 'Cómo jugar', title: 'Nunca te quedas atascada', imgs: ['r_nemo'], text: ['Una *flecha dorada* siempre muestra adónde ir.', 'Si pasa un rato sin avanzar, Nemo te da una *pista* (tecla H o habla con él).', 'Los soldados del Rey vigilan: mira su *franja roja* y pasa cuando miren a otro lado. Si te pillan, ¡te interrogan!'] },
+  { part: 'Cómo jugar', title: 'Duelos por turnos', imgs: ['r_sanbruno'], text: ['En cada turno elige: *Argumentar* (una pregunta de historia), *Poderes*, *Mochila* o *Pista*.', 'Cada acierto baja la *DUDA* del rival. Los villanos atacan y bajan tu *ánimo*…', '…pero nunca pierdes: «los valientes se levantan una vez más de las que se caen».'] },
+  { part: 'Cómo jugar', title: 'Acción: ¡a correr!', imgs: ['b_rodriguez_mg_caballo'], text: ['A veces los soldados te *persiguen*: mantén B (o Shift) para correr y llega a la meta. Si te atrapan, vuelves a intentarlo.', 'En las *cabalgatas* usa ▲ ▼ para esquivar piedras y barriles, y junta estrellas.', 'Los *jefes* atacan de verdad: cuando caigan balas, tinta o papeles, esquívalos con ◀ ▶.'] },
+  { part: 'Cómo jugar', title: 'Explora todo', imgs: ['b_barril'], text: ['Los mapas tienen barrios, huertos, bodegas y ríos para recorrer.', 'Revisa los *barriles, cajones, parvas y ollas* que brillan: puedes encontrar *manzanas* (te devuelven el ánimo en los duelos) o *datos curiosos* de la época.', 'Conversa con todos: cada vecino sabe algo de su tiempo.'] }
+];
+const INSTR = { page: 0, t: 0 };
+function openInstructions() { INSTR.page = 0; INSTR.t = 0; G.scene = 'instr'; }
+SCENES.instr = {
+  update(dt) {
+    INSTR.t += dt;
+    if (INP.pressed.right || INP.pressed.a) { if (INSTR.page < INSTR_PAGES.length - 1) { INSTR.page++; INSTR.t = 0; AUD.sfx('move'); } else if (INP.pressed.a) { AUD.sfx('select'); G.scene = 'title'; } }
+    else if (INP.pressed.left && INSTR.page > 0) { INSTR.page--; INSTR.t = 0; AUD.sfx('move'); }
+    else if (INP.pressed.b || INP.pressed.start) { AUD.sfx('blip'); G.scene = 'title'; }
+  },
+  drawLow(c) { SCENES.title.drawLow(c); c.fillStyle = 'rgba(10,14,40,0.55)'; c.fillRect(0, 0, W, H); },
+  drawHi(c) {
+    const P = INSTR_PAGES[INSTR.page]; const x = 18, y = 14, w = W - 36, h = H - 28;
+    box(c, x, y, w, h, 'parch');
+    c.fillStyle = COL.red; c.font = FONT(9, 1); c.fillText(P.part.toUpperCase(), x + 14, y + 18);
+    c.fillStyle = '#3a2414'; c.font = FONT(16, 1); c.fillText(P.title, x + 14, y + 38);
+    const k = Math.min(1, INSTR.t / 0.35);
+    let tx = x + 14, tw = w - 28;
+    if (P.imgs) {
+      const iw = 120; const n = P.imgs.length;
+      P.imgs.forEach((id, i) => { const im = IMG[id]; if (!im) return; const s = n > 2 ? 52 : n === 2 ? 70 : 108; const ih = s * im.height / im.width; const ix = x + 14 + (n === 2 ? i * 52 : n > 2 ? (i % 2) * 56 : 4), iy = y + 50 + (n > 2 ? Math.floor(i / 2) * 56 : n === 2 ? i * 40 : 0); c.globalAlpha = k; if (id.startsWith('r_')) { c.save(); rrect(c, ix, iy, s, s, 8); c.fillStyle = '#fff4d8'; c.fill(); c.clip(); c.drawImage(im, ix, iy, s, s); c.restore(); } else c.drawImage(im, ix, iy, s, Math.min(ih, h - 70)); c.globalAlpha = 1; });
+      tx = x + 14 + iw + 8; tw = w - 28 - iw - 8;
+    }
+    if (P.medals) { FOUNDERS.forEach((F, i) => { const im = IMG['m_' + F.id]; if (!im) return; const s = 26; c.globalAlpha = Math.min(1, Math.max(0, INSTR.t * 3 - i * 0.15)); c.drawImage(im, x + 18 + (i % 6) * 30, y + 54 + Math.floor(i / 6) * 30, s, s); c.globalAlpha = 1; }); tx = x + 14 + 190; tw = w - 28 - 190; }
+    if (P.keys) {
+      const rows = [['Caminar', 'Flechas o WASD', 'Cruceta'], ['Hablar · aceptar', 'Z, Espacio o Enter', 'A'], ['Volver · correr', 'X, Esc o Shift', 'B'], ['Libro de los Fundadores', 'M o Tab', 'LIBRO'], ['Pista de Nemo', 'H', 'Habla con Nemo']];
+      c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText('ACCIÓN', x + 16, y + 58); c.fillText('TECLADO', x + 140, y + 58); c.fillText('CELULAR', x + 250, y + 58);
+      rows.forEach((r, i) => { const yy = y + 76 + i * 20; c.fillStyle = i % 2 ? 'rgba(122,74,40,0.06)' : 'rgba(122,74,40,0.12)'; c.fillRect(x + 10, yy - 13, w - 20, 19); c.fillStyle = '#3a2414'; c.font = FONT(10.5, 1); c.fillText(r[0], x + 16, yy); c.font = FONT(10.5); c.fillText(r[1], x + 140, yy); c.fillText(r[2], x + 250, yy); });
+      c.font = FONT(9.5); c.fillStyle = '#5a4030'; c.fillText('La partida se guarda sola cada vez que cambias de lugar.', x + 16, y + 186);
+    }
+    c.font = FONT(11); let yy = y + 62;
+    P.text.forEach(line => { const L = wrapRich(c, line, tw); c.globalAlpha = k; drawRichLines(c, L, tx, yy, 14, 9999, '#3a2414'); c.globalAlpha = 1; yy += L.length * 14 + 7; });
+    // pie: puntos de página y ayuda
+    c.textAlign = 'center';
+    for (let i = 0; i < INSTR_PAGES.length; i++) { c.fillStyle = i === INSTR.page ? COL.red : 'rgba(122,74,40,0.35)'; c.beginPath(); c.arc(W / 2 - (INSTR_PAGES.length - 1) * 6 + i * 12, y + h - 22, 3, 0, 7); c.fill(); }
+    c.font = FONT(9); c.fillStyle = '#7a5a3a'; c.fillText(INSTR.page < INSTR_PAGES.length - 1 ? '◂ ▸ pasar página · A: seguir · B: volver a la portada' : '◂ página anterior · A o B: volver a la portada', W / 2, y + h - 8);
+    c.textAlign = 'left';
+  }
+};
+
+// portada 2.5D: plaza de 1810, MG (modelo 3D) y Nemo junto a la pileta, cámara que gira lento
+function title3D() {
+  if (typeof M3D === 'undefined' || !M3D.ok || !IMG.t_pasto || (G.settings && G.settings.no3d)) return false;
+  if (!TITLE.world || G.mapId !== 'stgo1810' || !G.player) {
+    TITLE.world = true; G.flags = {}; G.outfit = 'mg';
+    enterMap('stgo1810', 17, 19, 'down'); G.tint = null;
+    G.follower = makeEnt({ id: 'nemo', x: 19, y: 19, dir: 'down', sprite: 'nemo', ghost: true, solid: false });
+  }
+  const p = G.player; TITLE.walk = (TITLE.walk || 0) - 1 / 60;
+  if (TITLE.walk <= 0 && !p.moving) { TITLE.walk = 2.5 + Math.random() * 2; const d = ['left', 'right', 'down'][Math.floor(Math.random() * 3)]; const [dx, dy] = DIRS[d]; if (Math.abs(p.x + dx - 17) <= 2 && Math.abs(p.y + dy - 19) <= 1) startMove(p, d); else p.dir = d; }
+  updateEnt(p, 1 / 60); const f = G.follower; if (f) { f.dir = p.x > f.x ? 'right' : p.x < f.x ? 'left' : 'down'; }
+  m3dDraw(); return true;
+}
 SCENES.title = {
   update(dt) {
-    TITLE.t += dt; const save = loadSave(); const opts = save ? ['Continuar', 'Nueva aventura'] : ['Nueva aventura'];
-    if (INP.pressed.up || INP.pressed.down) { TITLE.sel = (TITLE.sel + 1) % opts.length; AUD.sfx('move'); }
+    TITLE.t += dt; const save = loadSave(); const opts = titleOpts(save);
+    if (INP.pressed.down) { TITLE.sel = (TITLE.sel + 1) % opts.length; AUD.sfx('move'); } if (INP.pressed.up) { TITLE.sel = (TITLE.sel + opts.length - 1) % opts.length; AUD.sfx('move'); }
     if (INP.pressed.a) {
       AUD.init(); AUD.sfx('select'); const o = opts[TITLE.sel];
-      if (o === 'Continuar') continueGame(save);
+      if (o === 'Instrucciones') openInstructions();
+      else if (o === 'Continuar') continueGame(save);
       else if (save) { runConfirmNew(); }
       else newGame();
     }
   },
   drawLow(c) {
+    if (title3D()) return;   // portada 2.5D: la plaza de 1810 con MG y Nemo
     const t = TITLE.t; const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1e3a8a'); g.addColorStop(0.7, '#2f7ac8'); g.addColorStop(1, '#5aa8e8'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     for (let i = 0; i < 50; i++) { const x = (i * 97) % W, y = (i * 53) % 150; c.fillStyle = (Math.floor(t * 2 + i) % 5) ? '#fff' : '#ffe680'; c.fillRect(x, y, 1 + (i % 3 === 0), 1 + (i % 3 === 0)); }
     // colinas y cordillera
@@ -575,10 +873,10 @@ SCENES.title = {
     const t = TITLE.t;
     const gl = c.createRadialGradient(W / 2, 66, 10, W / 2, 66, 120); gl.addColorStop(0, 'rgba(255,250,235,0.95)'); gl.addColorStop(0.55, 'rgba(255,250,235,0.75)'); gl.addColorStop(1, 'rgba(255,250,235,0)'); c.fillStyle = gl; c.beginPath(); c.ellipse(W / 2, 66, 130, 64, 0, 0, 7); c.fill();
     if (IMG.logo) { const s = 150 + Math.sin(t * 2) * 3; c.drawImage(IMG.logo, W / 2 - s / 2, -6, s, s); }
-    c.fillStyle = 'rgba(14,18,48,0.55)'; rrect(c, W / 2 - 120, 116, 240, loadSave() ? 104 : 70, 10); c.fill();
+    c.fillStyle = 'rgba(14,18,48,0.55)'; rrect(c, W / 2 - 120, 116, 240, loadSave() ? 120 : 87, 10); c.fill();
     c.textAlign = 'center'; c.font = FONT(20, 1); c.fillStyle = '#1c2450'; c.fillText('MG y los Fundadores', W / 2 + 1.5, 132 + 1.5); c.fillStyle = '#fff4d8'; c.fillText('MG y los Fundadores', W / 2, 132);
     c.font = FONT(10); c.fillStyle = '#ffe680'; c.fillText('Una aventura por la historia de Chile', W / 2, 146);
-    const save = loadSave(); const opts = save ? ['Continuar', 'Nueva aventura'] : ['Nueva aventura'];
+    const save = loadSave(); const opts = titleOpts(save);
     opts.forEach((o, i) => { const sel = TITLE.sel === i; c.font = FONT(13, 1); c.fillStyle = sel ? '#ffe680' : '#cfe0ff'; c.fillText((sel ? '▸ ' : '') + o + (sel ? ' ◂' : ''), W / 2, 168 + i * 17); });
     if (save) { c.font = FONT(8.5); c.fillStyle = '#cfe0ff'; c.fillText(`Partida guardada: ${save.medals.length}/12 medallas`, W / 2, 168 + opts.length * 17); }
     c.font = FONT(8); c.fillStyle = 'rgba(255,255,255,0.75)'; c.fillText('Historia: Miguel Ángel Fernández · Ilustraciones: Rafael Fernández', W / 2, H - 6);
