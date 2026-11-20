@@ -32,11 +32,11 @@ addEventListener('resize', resize);
 
 // --------------------------------------------------------------- entrada
 const INP = { held: {}, pressed: {}, order: [] };
-const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', KeyZ: 'a', Space: 'a', Enter: 'a', NumpadEnter: 'a', KeyX: 'b', Backspace: 'b', Escape: 'b', ShiftLeft: 'run', ShiftRight: 'run', KeyM: 'start', Tab: 'start', KeyL: 'start', KeyH: 'hint' };
-function press(btn) { AUD.init(); if (!INP.held[btn]) { INP.pressed[btn] = true; if (DIRS[btn]) { INP.order = INP.order.filter(d => d !== btn); INP.order.push(btn); } } INP.held[btn] = true; }
+const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', KeyZ: 'a', Space: 'a', Enter: 'a', NumpadEnter: 'a', KeyX: 'b', Backspace: 'b', Escape: 'b', ShiftLeft: 'run', ShiftRight: 'run', KeyM: 'start', Tab: 'start', KeyL: 'start', KeyH: 'hint', KeyP: 'pause' };
+function press(btn) { AUD.init(); if (!INP.held[btn]) { INP.pressed[btn] = true; if (btn === 'a' || btn === 'b') INP.toques = (INP.toques || 0) + 1; if (DIRS[btn]) { INP.order = INP.order.filter(d => d !== btn); INP.order.push(btn); } } INP.held[btn] = true; }
 function release(btn) { INP.held[btn] = false; INP.order = INP.order.filter(d => d !== btn); }
-addEventListener('keydown', e => { const b = KEYMAP[e.code]; if (b) { e.preventDefault(); if (!e.repeat) press(b); } });
-addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) { e.preventDefault(); release(b); } });
+addEventListener('keydown', e => { const b = KEYMAP[e.code]; if (b) { e.preventDefault(); if (!e.repeat) { press(b); if (e.code === 'Escape') press('pause'); } } });
+addEventListener('keyup', e => { const b = KEYMAP[e.code]; if (b) { e.preventDefault(); release(b); if (e.code === 'Escape') release('pause'); } });
 addEventListener('blur', () => { for (const k in INP.held) release(k); });
 function dirHeld() { for (let i = INP.order.length - 1; i >= 0; i--) if (INP.held[INP.order[i]]) return INP.order[i]; return null; }
 function pressedAny(...b) { return b.some(x => INP.pressed[x]); }
@@ -44,7 +44,7 @@ function pressedAny(...b) { return b.some(x => INP.pressed[x]); }
 let padPrev = {};
 function pollGamepad() {
   const gps = navigator.getGamepads ? navigator.getGamepads() : []; const gp = gps && gps[0]; if (!gp) return;
-  const st = { up: gp.buttons[12]?.pressed || gp.axes[1] < -0.5, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.5, left: gp.buttons[14]?.pressed || gp.axes[0] < -0.5, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.5, a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, start: gp.buttons[9]?.pressed, run: gp.buttons[2]?.pressed };
+  const st = { up: gp.buttons[12]?.pressed || gp.axes[1] < -0.5, down: gp.buttons[13]?.pressed || gp.axes[1] > 0.5, left: gp.buttons[14]?.pressed || gp.axes[0] < -0.5, right: gp.buttons[15]?.pressed || gp.axes[0] > 0.5, a: gp.buttons[0]?.pressed, b: gp.buttons[1]?.pressed, start: gp.buttons[9]?.pressed, run: gp.buttons[2]?.pressed, pause: gp.buttons[8]?.pressed };
   for (const k in st) { if (st[k] && !padPrev[k]) press(k); if (!st[k] && padPrev[k]) release(k); }
   padPrev = st;
 }
@@ -67,6 +67,8 @@ function setupTouch() {
 
 // --------------------------------------------------------------- utilidades
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// espera con salto: termina al cumplirse el tiempo o cuando se pulsa A/B (después de un mínimo)
+async function esperarOToque(ms, minMs = 500) { const t0 = performance.now(); await sleep(minMs); const k = INP.toques || 0; while (performance.now() - t0 < ms && (INP.toques || 0) === k) await sleep(30); }
 function waitFrames(n = 1) { return new Promise(r => { let k = n; const f = () => { if (--k <= 0) r(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function hasFlag(f) { return !!G.flags[f]; }
@@ -247,7 +249,7 @@ const SAVE_KEY = 'mg_fundadores_v1';
 function saveGame() {
   if (!G.player || G.scene !== 'world' && G.scene !== 'book') return;
   const data = { v: 1, flags: G.flags, medals: G.medals, items: G.items, met: G.met, objective: G.objective, outfit: G.outfit, map: G.mapId, x: G.player.x, y: G.player.y, dir: G.player.dir, era: G.era, settings: G.settings, playTime: G.playTime, savedAt: Date.now() };
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); G.guardadoT = G.t; } catch (e) { }
 }
 function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
 
@@ -285,6 +287,7 @@ function worldUpdate(dt) {
     } else { turnT = 0; p.accel = 0.7; }
     if (INP.pressed.a) interact();
     else if (INP.pressed.start) openBook();
+    else if (INP.pressed.pause && typeof openPause === 'function') openPause();
     else if (INP.pressed.hint && typeof showHintNow === 'function') showHintNow();
   }
   bumpT -= dt;
@@ -511,21 +514,110 @@ const SCENES = {
 
 // --------------------------------------------------------------- carga de recursos
 function loadImg(key, src) { return new Promise(r => { const i = new Image(); i.onload = () => { IMG[key] = i; r(); }; i.onerror = () => { console.warn('No se pudo cargar', src); r(); }; i.src = src; }); }
+// --------------------------------------------------------------- PANTALLA DE CARGA con mini intro
+// 1) «Pequeños Patriotas presenta» con el logo; 2) MG corre tras Nemo mientras se llena el camino de carga y
+// aparecen datos curiosos; 3) «Toca o presiona una tecla»: ese gesto activa el audio y abre la portada.
+const CARGA = { t: 0, prog: 0, vis: 0, listo: false, dato: 0, datoT: 0, datos: [], toque: false, salir: -1 };
+const INTRO_VISTA = 'mg_intro_vista';
+function introVista() { try { return !!localStorage.getItem(INTRO_VISTA); } catch (e) { return false; } }
+SCENES.carga = {
+  update(dt) {
+    CARGA.t += dt; CARGA.datoT += dt; CARGA.vis += (CARGA.prog - CARGA.vis) * Math.min(1, dt * 5);
+    if (CARGA.datoT > 5 && CARGA.datos.length) { CARGA.datoT = 0; CARGA.dato = (CARGA.dato + 1) % CARGA.datos.length; }
+    const quiere = CARGA.toque || pressedAny('a', 'b', 'start', 'pause'); CARGA.toque = false;
+    if (quiere && CARGA.t < 2.4 && !introVista()) { }               // la primera vez, el logo no se salta
+    else if (quiere && CARGA.t < 2.4) CARGA.t = 2.4;                // las siguientes, sí
+    else if (quiere) CARGA.pide = true;
+    if (CARGA.salir < 0 && CARGA.listo && CARGA.pide) { CARGA.salir = 0; AUD.init(); AUD.sfx('select'); try { localStorage.setItem(INTRO_VISTA, '1'); } catch (e) { } }
+    if (CARGA.salir >= 0) { CARGA.salir += dt; if (CARGA.salir > 0.45) { G.scene = 'title'; AUD.play('titulo'); G.fade = 1; G.fadeColor = '#fff6e0'; desvanecer(); precargarModelos(); } }
+  },
+  drawLow(c) { c.fillStyle = '#fff6e0'; c.fillRect(0, 0, W, H); },
+  drawHi(c) {
+    const t = CARGA.t, cx = W / 2;
+    // fase 1: logo sobre papel, con brillo que lo cruza
+    if (t < 2.4) {
+      c.fillStyle = '#fff6e0'; c.fillRect(0, 0, W, H);
+      const k = Math.min(1, t / 0.6), a = Math.min(1, t / 0.4, (2.4 - t) / 0.35), lg = IMG.logo;
+      c.globalAlpha = a;
+      if (lg) { const s = 150 * (0.85 + 0.15 * easeOut(k));
+        // brillo que cruza el logo: se pinta en una capa aparte, solo sobre los píxeles del logo
+        const L = CARGA.capa || (CARGA.capa = mkCanvas(300, 300)), lx = L.getContext('2d'); lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, 300, 300); lx.drawImage(lg, 0, 0, 300, 300);
+        if (t > 0.7 && t < 1.7) { const sx = (t - 0.7) * 360 - 30; const g = lx.createLinearGradient(sx - 40, 0, sx + 40, 60); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); lx.globalCompositeOperation = 'source-atop'; lx.fillStyle = g; lx.fillRect(0, 0, 300, 300); }
+        c.drawImage(L, cx - s / 2, 92 - s / 2, s, s); }
+      c.textAlign = 'center'; c.font = FONT(13, 1); c.fillStyle = '#3a5ab0'; c.fillText('presenta', cx, 176);
+      c.globalAlpha = 1; c.textAlign = 'left'; return;
+    }
+    const u = t - 2.4;
+    // cielo, cordillera y pasto que corre
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#8fc6f0'); g.addColorStop(0.55, '#d8ecf8'); g.addColorStop(0.56, '#9cc070'); g.addColorStop(1, '#6a9a48'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#a9b8d8'; c.beginPath(); c.moveTo(0, 141); for (let x = 0; x <= W; x += 24) c.lineTo(x, 141 - 30 - Math.abs(Math.sin(x * 0.021 + 1.3)) * 34 - Math.sin(x * 0.07) * 6); c.lineTo(W, 141); c.fill();
+    c.fillStyle = '#f4f8ff'; for (let x = 0; x <= W; x += 24) { const y = 141 - 30 - Math.abs(Math.sin(x * 0.021 + 1.3)) * 34 - Math.sin(x * 0.07) * 6; if (y < 92) { c.beginPath(); c.moveTo(x - 7, y + 9); c.lineTo(x, y); c.lineTo(x + 7, y + 9); c.fill(); } }
+    const off = (u * 90) % 32; c.fillStyle = 'rgba(60,110,40,0.55)';
+    for (let x = -off; x < W + 32; x += 32) { c.fillRect(x, 182, 3, 6); c.fillRect(x + 14, 196, 3, 6); c.fillRect(x + 7, 212, 2, 5); }
+    // Nemo adelante y MG detrás, corriendo (saltitos con estiramiento) — dibujos de Rafael de perfil
+    const corre = (im, x, base, h, fase, rot) => { if (!im) return; const p = Math.abs(Math.sin(u * 9 + fase)); const w = h * im.width / im.height; c.save(); c.translate(x, base - p * 9); c.rotate(Math.sin(u * 9 + fase) * rot); c.scale(1 - p * 0.03, 1 + p * 0.04); c.drawImage(im, -w / 2, -h, w, h); c.restore(); c.fillStyle = 'rgba(30,50,20,0.25)'; c.beginPath(); c.ellipse(x, base + 2, w * 0.32 * (1 - p * 0.3), 4, 0, 0, 7); c.fill(); };
+    const vaiv = Math.sin(u * 0.8) * 10;
+    corre(IMG.c_nemo_lado, cx + 70 + vaiv * 0.6, 188, 46, 0.9, 0.06);
+    corre(IMG.c_mg_casa_lado || IMG.c_mg_lado, cx - 40 + vaiv, 192, 88, 0, 0.04);
+    for (let i = 0; i < 4; i++) { const k = ((u * 1.6 + i / 4) % 1); c.globalAlpha = (1 - k) * 0.5; c.fillStyle = '#e8dcc0'; c.beginPath(); c.arc(cx - 70 + vaiv - k * 40, 188 - k * 8, 3 + k * 5, 0, 7); c.fill(); }
+    c.globalAlpha = 1;
+    // título
+    c.textAlign = 'center'; c.font = FONT(24, 1); c.lineWidth = 5; c.strokeStyle = '#1c2450'; c.strokeText('MG y los Fundadores', cx, 34); c.fillStyle = '#ffe680'; c.fillText('MG y los Fundadores', cx, 34);
+    // dato curioso
+    if (CARGA.datos.length && u > 0.8) {
+      const d = CARGA.datos[CARGA.dato], a = Math.min(1, CARGA.datoT / 0.4, (5 - CARGA.datoT) / 0.4);
+      c.globalAlpha = a; c.font = FONT(10); const L = lineasAviso(c, d, W - 90);
+      const bh = 22 + L.length * 12; box(c, 30, 46, W - 60, bh, 'parch');
+      c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText('¿SABÍAS QUE…?', cx, 59); c.font = FONT(10); c.fillStyle = '#3a2414'; L.forEach((s, i) => c.fillText(s, cx, 72 + i * 12)); c.globalAlpha = 1;
+    }
+    // camino de carga (o invitación a empezar)
+    const by = 232;
+    if (!CARGA.listo || CARGA.salir >= 0) {
+      c.fillStyle = 'rgba(90,58,32,0.55)'; rrect(c, 60, by - 5, W - 120, 10, 5); c.fill();
+      c.fillStyle = '#ffe680'; rrect(c, 61, by - 4, Math.max(8, (W - 122) * CARGA.vis), 8, 4); c.fill();
+      c.fillStyle = COL.red; c.fillRect(W - 62, by - 18, 2, 14); c.beginPath(); c.moveTo(W - 60, by - 18); c.lineTo(W - 50, by - 15); c.lineTo(W - 60, by - 12); c.fill();
+      c.font = FONT(9, 1); c.fillStyle = '#fff'; c.fillText(`Abriendo el libro… ${Math.round(CARGA.vis * 100)}%`, cx, by + 18);
+    } else if (Math.sin(t * 5) > -0.4) {
+      c.font = FONT(13, 1); c.lineWidth = 4; c.strokeStyle = '#1c2450'; const m = IS_TOUCH ? 'Toca la pantalla para empezar' : 'Presiona cualquier tecla para empezar'; c.strokeText(m, cx, by + 6); c.fillStyle = '#fff'; c.fillText(m, cx, by + 6);
+    }
+    c.textAlign = 'left';
+    if (CARGA.salir >= 0) { c.globalAlpha = Math.min(1, CARGA.salir / 0.45); c.fillStyle = '#fff6e0'; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
+  }
+};
+function easeOut(k) { return 1 - Math.pow(1 - k, 3); }
+async function desvanecer() { for (let i = 0; i < 20; i++) { await sleep(25); G.fade = Math.max(0, 1 - (i + 1) / 20); } G.fade = 0; }
+// modelos 3D en segundo plano (antes cargaban recién al aparecer el personaje y se veían como dibujos planos un rato)
+async function precargarModelos() {
+  if (typeof MODEL3D === 'undefined' || typeof M3D === 'undefined' || !M3D.ok || location.protocol === 'file:') return;
+  const orden = ['mg_casa', 'mg', 'mama', 'papa', 'max', 'tio', 'mateo', 'salas', 'vecino', 'vecina', 'realista', 'guardia'];
+  const todos = [...orden, ...Object.keys(MODEL3D).filter(k => !orden.includes(k))];
+  if (typeof m3dAnimalLoad === 'function') m3dAnimalLoad('nemo');
+  for (const k of todos) {
+    if (!MODEL3D[k] || (MODEL3D_OK && !Object.values(MODEL3D[k].gaits).every(u => MODEL3D_OK.has(u.split('/').pop())))) continue;
+    m3dModelLoad(k); let n = 0; while (MOD.loading[k] && !MOD.gltf[k] && !MOD.failed[k] && n++ < 400) await sleep(50);
+    await sleep(G.scene === 'world' ? 400 : 120);   // dejar respirar al juego
+  }
+  ['horse', 'jinete', 'mula'].forEach(k => typeof m3dAnimalLoad === 'function' && m3dAnimalOk(k) && m3dAnimalLoad(k));
+}
 async function boot() {
   resize(); setupTouch();
   ART.init();
+  // primero la fuente, el logo y los dibujos de la intro; luego empieza la pantalla de carga y sigue lo demás
+  try { const f = new FontFace('Playtime', typeof FUENTE_PLAYTIME !== 'undefined' ? `url(${FUENTE_PLAYTIME})` : 'url(assets/fuentes/playtime.ttf)'); await Promise.race([f.load().then(ff => document.fonts.add(ff)), sleep(2000)]); } catch (e) { }
+  await Promise.race([Promise.all([loadImg('logo', 'assets/img/logo.png'), loadImg('c_nemo_lado', 'assets/3d/c_nemo_lado.webp'), loadImg('c_mg_casa_lado', 'assets/3d/c_mg_casa_lado.webp')]), sleep(4000)]);
+  CARGA.datos = Object.values(typeof DATOS_EPOCA !== 'undefined' ? DATOS_EPOCA : {}).flat().filter(d => d.length < 120).sort(() => Math.random() - 0.5);
+  const ld = document.getElementById('loading'); if (ld) ld.remove();
+  addEventListener('pointerdown', () => { if (G.scene === 'carga') { AUD.init(); CARGA.toque = true; } });
+  G.scene = 'carga'; requestAnimationFrame(frame);
   const ids = ['mateo', 'salas', 'javiera', 'jmcarrera', 'paula', 'rodriguez', 'luisa', 'ohiggins', 'cornelia', 'freire', 'agueda', 'portales', 'mg', 'nemo', 'ohiggins_bandera'];
   const jobs = [];
   ids.forEach(id => { jobs.push(loadImg('r_' + id, `assets/retratos/${id}.png`)); jobs.push(loadImg('c_' + id, `assets/cuerpos/${id}.png`)); jobs.push(loadImg('m_' + id, `assets/medallas/${id}.png`)); });
   ['mg_espalda', 'mg_casa_espalda', 'dudoso', 'temeroso', 'repaso', 'talavera', 'olvido'].forEach(id => jobs.push(loadImg('v_' + id, `assets/villanos/${id}.png`)));
-  ['consulado', 'alameda', 'reconquista', 'campo', 'chillan', 'maipu', 'monte', 'espiritu'].forEach(id => jobs.push(loadImg('bf_' + id, `assets/fondos/f_${id}.jpg`)));
+  ['consulado', 'alameda', 'reconquista', 'campo', 'chillan', 'maipu', 'monte', 'espiritu', 'chacabuco'].forEach(id => jobs.push(loadImg('bf_' + id, `assets/fondos/f_${id}.jpg`)));
   if (typeof M3D !== 'undefined' && M3D.ok && typeof M3D_FILES !== 'undefined') M3D_FILES.forEach(f => jobs.push(loadImg(f.replace(/\.(png|jpg|webp)$/, ''), 'assets/3d/' + f)));
   ['sanbruno', 'osorio', 'marco', 'espiritu'].forEach(id => { jobs.push(loadImg('r_' + id, `assets/retratos/${id}.png`)); jobs.push(loadImg('v_' + id, `assets/villanos/${id}.png`)); });
-  jobs.push(loadImg('logo', 'assets/img/logo.png'), loadImg('portada', 'assets/img/portada.png'), loadImg('pagina_mateo', 'assets/img/pagina_mateo.png'));
-  try { const f = new FontFace('Playtime', typeof FUENTE_PLAYTIME !== 'undefined' ? `url(${FUENTE_PLAYTIME})` : 'url(assets/fuentes/playtime.ttf)'); jobs.push(f.load().then(ff => document.fonts.add(ff)).catch(() => { })); } catch (e) { }
-  let done = 0; jobs.forEach(j => j.then(() => { done++; const el = document.getElementById('loadbar'); if (el) el.style.width = (100 * done / jobs.length) + '%'; }));
+  jobs.push(loadImg('portada', 'assets/img/portada.png'));
+  let done = 0; jobs.forEach(j => j.then(() => { done++; CARGA.prog = done / jobs.length; }));
   await Promise.all(jobs);
-  const ld = document.getElementById('loading'); if (ld) ld.remove();
-  G.scene = 'title'; AUD.play('titulo');
-  requestAnimationFrame(frame);
+  CARGA.prog = 1; CARGA.listo = true;
 }

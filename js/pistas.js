@@ -202,7 +202,7 @@ async function introCinematic() {
   G.scene = 'travel'; TRAVEL.t = 0; TRAVEL.label = ''; TRAVEL.dest = ''; TRAVEL.intro = true; AUD.play('tiempo');
   G.fade = 0;
   const lines = ['Un libro mágico…', 'un perro detective…', 'doce fundadores…', '¡y un viaje por la historia de Chile!'];
-  for (const l of lines) { TRAVEL.dest = l; TRAVEL.t = 0; await sleep(1700); }
+  for (const l of lines) { TRAVEL.dest = l; TRAVEL.t = 0; await esperarOToque(3500, 700); }
   TRAVEL.dest = ''; TRAVEL.intro = false; AUD.sfx('bark'); await sleep(300);
   await flash('#ffffff', 700);
   G.scene = 'world'; G.fade = 1;

@@ -6,7 +6,7 @@ const FONT = (s, b) => `${b ? 'bold ' : ''}${s}px Playtime, "Trebuchet MS", "Seg
 const COL = { ink: '#2a1e2e', paper: '#fffaf0', blue: '#3a5ab0', blue2: '#6a8ad8', gold: '#e8c050', red: '#c8323a', navy: '#1c2450', parch: '#f4e6c4', parch2: '#e2cc9c', hl: '#c8323a' };
 const UI = { layers: [], toasts: [] };
 UI.modal = () => UI.layers.length > 0;
-UI.update = dt => { const top = UI.layers[UI.layers.length - 1]; if (top && top.update) top.update(dt); UI.toasts = UI.toasts.filter(t => (t.t += dt) < t.dur); };
+UI.update = dt => { const top = UI.layers[UI.layers.length - 1]; if (top && top.update) top.update(dt); UI.toasts.forEach(t => { if (t.fijo && t.t > 1 && t.dur > t.t + 0.3 && pressedAny('a', 'b')) t.dur = t.t + 0.3; }); UI.toasts = UI.toasts.filter(t => (t.t += dt) < t.dur); };
 UI.draw = c => { if (G.cine && !G.cine.ui) return; UI.layers.forEach(l => l.draw && l.draw(c)); drawToasts(c); };
 UI.push = layer => new Promise(res => { layer.resolve = v => { UI.layers = UI.layers.filter(l => l !== layer); res(v); }; UI.layers.push(layer); });
 
@@ -118,14 +118,34 @@ function choose(options, o = {}) {
     draw(c) { box(c, x, y, w, h); c.font = FONT(12); options.forEach((s, k) => { c.fillStyle = k === this.i ? COL.red : COL.ink; c.fillText(s, x + 20, y + 18 + k * 16); if (k === this.i) { c.beginPath(); const ay = y + 10 + k * 16 + Math.sin(G.t * 8) * 0.8; c.moveTo(x + 9, ay); c.lineTo(x + 15, ay + 4); c.lineTo(x + 9, ay + 8); c.fill(); } }); }
   });
 }
-function toast(text, dur = 3.2) { AUD.sfx('page'); UI.toasts.push({ text, t: 0, dur }); }
+// avisos: duran según el largo del texto (lectores de 7 a 9 años): 1,5 s + 0,35 s por palabra, entre 4 y 12 s; más con texto lento.
+// o.fijo: el aviso queda hasta que se pulse A o B.
+function toast(text, dur, o = {}) {
+  AUD.sfx('page');
+  const palabras = String(text).split(/\s+/).length, lento = G.settings && G.settings.textSpeed < 1 ? 1.35 : 1;
+  const d = clamp(Math.max(dur || 0, 1.5 + 0.35 * palabras) * lento, 4, 12);
+  UI.toasts.push({ text, t: 0, dur: o.fijo ? 9999 : d, fijo: !!o.fijo });
+  while (UI.toasts.length > 3) UI.toasts.shift();
+}
+function lineasAviso(c, text, maxW) { const L = []; let cur = ''; String(text).split(' ').forEach(w => { const t = cur ? cur + ' ' + w : w; if (cur && c.measureText(t).width > maxW) { L.push(cur); cur = w; } else cur = t; }); if (cur) L.push(cur); return L; }
 function drawToasts(c) {
   if (G.cine) return;
-  UI.toasts.forEach((t, i) => {
-    const k = Math.min(1, t.t / 0.25, (t.dur - t.t) / 0.25); c.font = FONT(10.5, 1); const w = Math.min(W - 20, c.measureText(t.text).width + 26);
-    const x = W - (w + 8) * k, y = 6 + i * 22; box(c, x, y, w, 19, 'parch'); c.fillStyle = '#5a3a20'; c.fillText(t.text, x + 13, y + 13);
+  let y = 6;
+  UI.toasts.forEach(t => {
+    const k = Math.min(1, t.t / 0.25, (t.dur - t.t) / 0.25); c.font = FONT(10.5, 1);
+    const L = lineasAviso(c, t.text, W - 64); const w = Math.min(W - 20, Math.max(...L.map(s => c.measureText(s).width)) + 26 + (t.fijo ? 16 : 0)), h = 7 + L.length * 12.5;
+    const x = W - (w + 8) * k; box(c, x, y, w, h, 'parch'); c.fillStyle = '#5a3a20'; L.forEach((s, i) => c.fillText(s, x + 13, y + 13 + i * 12.5));
     c.fillStyle = COL.red; c.fillRect(x + 6, y + 7, 3, 5);
+    if (t.fijo && Math.sin(G.t * 6) > -0.3) { c.font = FONT(9, 1); c.fillText('▸A', x + w - 19, y + h - 6); }
+    y += h + 3;
   });
+  // aviso de guardado: libreta con «Guardado» en la esquina inferior izquierda
+  const g = G.guardadoT != null ? G.t - G.guardadoT : 99;
+  if (g < 2.2 && (G.scene === 'world' || G.scene === 'book' || G.scene === 'pausa')) {
+    const a = Math.min(1, g / 0.2, (2.2 - g) / 0.4); c.globalAlpha = a; const x = 6, yy = H - 26;
+    box(c, x, yy, 78, 20, 'parch'); c.fillStyle = COL.navy; c.fillRect(x + 8, yy + 5, 9, 11); c.fillStyle = '#fff4d8'; c.fillRect(x + 11, yy + 8, 5, 1.5); c.fillRect(x + 11, yy + 11, 5, 1.5); c.fillStyle = COL.gold; c.fillRect(x + 8, yy + 5, 2, 11);
+    c.fillStyle = '#5a3a20'; c.font = FONT(10, 1); c.fillText('Guardado', x + 22, yy + 14); c.globalAlpha = 1;
+  }
 }
 
 // --------------------------------------------------------------- íconos de objetos
@@ -409,7 +429,7 @@ SCENES.travel = {
     else { glow(90); pic(IMG.b_nave || null, 110, 0.12); if (!IMG.b_nave) { const m = ART.props.timemachine[Math.floor(t * 8) % 4]; c.save(); c.translate(cx, cy); c.drawImage(m.c, -m.w, -m.h, m.w * 2, m.h * 2); c.restore(); } }
     // textos
     c.textAlign = 'center';
-    if (!TRAVEL.label && TRAVEL.dest) { const y = H - 26; box(c, cx - 150, y - 20, 300, 30, 'parch'); c.font = FONT(15, 1); c.fillStyle = '#3a2414'; c.fillText(TRAVEL.dest, cx, y); }
+    if (!TRAVEL.label && TRAVEL.dest) { const y = H - 26; box(c, cx - 150, y - 20, 300, 30, 'parch'); c.font = FONT(15, 1); c.fillStyle = '#3a2414'; c.fillText(TRAVEL.dest, cx, y); if (TRAVEL.intro && t > 0.7 && Math.sin(G.t * 6) > -0.3) { c.font = FONT(10, 1); c.fillStyle = COL.red; c.fillText('▸A', cx + 132, y + 2); } }
     if (TRAVEL.label) {
       const k = Math.min(1, t / 0.5), sc = 0.6 + 0.4 * easeOutBack(k);
       c.save(); c.translate(cx, 46); c.scale(sc, sc); c.font = FONT(34, 1); c.lineWidth = 6; c.strokeStyle = '#1c2450'; c.strokeText(TRAVEL.label, 0, 0); c.fillStyle = '#ffe680'; c.fillText(TRAVEL.label, 0, 0); c.restore();
@@ -610,9 +630,9 @@ function batFx(c) {
     if (BAT.shield > 0) { c.strokeStyle = 'rgba(140,220,255,' + (0.5 + Math.sin(t * 4) * 0.2) + ')'; c.lineWidth = 2; c.beginPath(); c.ellipse(96, 158, 40, 52, 0, 0, 7); c.stroke(); }
 }
 // fondo de combate según el lugar (imágenes en assets/fondos)
-const BAT_BG = { mendoza: 'maipu', cordillera: 'maipu', stgo1810: 'consulado', cabildo: 'consulado', alameda1814: 'alameda', casacarrera: 'alameda', stgo1816: 'reconquista', casa_agueda: 'reconquista', casa_luisa: 'reconquista', hacienda: 'campo', comedor: 'campo', campo: 'campo', cueva: 'campo', chillan: 'chillan', maipu: 'maipu', monte: 'monte' };
+const BAT_BG = { mendoza: 'chacabuco', cordillera: 'chacabuco', stgo1810: 'consulado', cabildo: 'consulado', alameda1814: 'alameda', casacarrera: 'alameda', stgo1816: 'reconquista', casa_agueda: 'reconquista', casa_luisa: 'reconquista', hacienda: 'campo', comedor: 'campo', campo: 'campo', cueva: 'campo', chillan: 'chillan', maipu: 'maipu', monte: 'monte' };
 // altura de los pies del rival (en la pantalla de 256 px) según dónde empieza el piso de cada fondo
-const BAT_FEET = { consulado: 191, alameda: 186, reconquista: 188, campo: 186, chillan: 188, maipu: 184, monte: 191, espiritu: 191 };   // suelo de cada fondo, bajo el rival
+const BAT_FEET = { chacabuco: 186, consulado: 191, alameda: 186, reconquista: 188, campo: 186, chillan: 188, maipu: 184, monte: 191, espiritu: 191 };   // suelo de cada fondo, bajo el rival
 function batKey() { const o = BAT.opp; return (o && o.bg) || BAT_BG[G.mapId]; }
 // dibujos que miran hacia la derecha: en el duelo se reflejan para que el rival mire a MG (que está a la izquierda)
 const ART_MIRA_DER = new Set(['v_dudoso', 'v_osorio', 'v_sanbruno']);
@@ -793,11 +813,12 @@ const INSTR_PAGES = [
   { part: 'Cómo jugar', title: 'Explora todo', imgs: ['b_barril'], text: ['Los mapas tienen barrios, huertos, bodegas y ríos para recorrer.', 'Revisa los *barriles, cajones, parvas y ollas* que brillan: puedes encontrar *manzanas* (te devuelven el ánimo en los duelos) o *datos curiosos* de la época.', 'Conversa con todos: cada vecino sabe algo de su tiempo.'] }
 ];
 const INSTR = { page: 0, t: 0 };
-function openInstructions() { INSTR.page = 0; INSTR.t = 0; G.scene = 'instr'; }
+function openInstructions() { INSTR.page = 0; INSTR.t = 0; INSTR.save = loadSave(); G.scene = 'instr'; }
 SCENES.instr = {
   update(dt) {
     INSTR.t += dt;
-    if (INP.pressed.right || INP.pressed.a) { if (INSTR.page < INSTR_PAGES.length - 1) { INSTR.page++; INSTR.t = 0; AUD.sfx('move'); } else if (INP.pressed.a) { AUD.sfx('select'); G.scene = 'title'; } }
+    if (INSTR.t < 0.5 && (INP.pressed.right || INP.pressed.a)) { }   // medio segundo mínimo: no saltarse páginas sin querer
+    else if (INP.pressed.right || INP.pressed.a) { if (INSTR.page < INSTR_PAGES.length - 1) { INSTR.page++; INSTR.t = 0; AUD.sfx('move'); } else if (INP.pressed.a) { AUD.sfx('select'); G.scene = 'title'; } }
     else if (INP.pressed.left && INSTR.page > 0) { INSTR.page--; INSTR.t = 0; AUD.sfx('move'); }
     else if (INP.pressed.b || INP.pressed.start) { AUD.sfx('blip'); G.scene = 'title'; }
   },
@@ -814,12 +835,16 @@ SCENES.instr = {
       P.imgs.forEach((id, i) => { const im = IMG[id]; if (!im) return; const s = n > 2 ? 52 : n === 2 ? 70 : 108; const ih = s * im.height / im.width; const ix = x + 14 + (n === 2 ? i * 52 : n > 2 ? (i % 2) * 56 : 4), iy = y + 50 + (n > 2 ? Math.floor(i / 2) * 56 : n === 2 ? i * 40 : 0); c.globalAlpha = k; if (id.startsWith('r_')) { c.save(); rrect(c, ix, iy, s, s, 8); c.fillStyle = '#fff4d8'; c.fill(); c.clip(); c.drawImage(im, ix, iy, s, s); c.restore(); } else c.drawImage(im, ix, iy, s, Math.min(ih, h - 70)); c.globalAlpha = 1; });
       tx = x + 14 + iw + 8; tw = w - 28 - iw - 8;
     }
-    if (P.medals) { FOUNDERS.forEach((F, i) => { const im = IMG['m_' + F.id]; if (!im) return; const s = 26; c.globalAlpha = Math.min(1, Math.max(0, INSTR.t * 3 - i * 0.15)); c.drawImage(im, x + 18 + (i % 6) * 30, y + 54 + Math.floor(i / 6) * 30, s, s); c.globalAlpha = 1; }); tx = x + 14 + 190; tw = w - 28 - 190; }
+    if (P.medals) {   // fila de 12 medallas sobre los puntos de página; las ganadas en color, las que faltan apagadas
+      const sv = INSTR.save, tengo = sv ? new Set(sv.medals || []) : null, s = 22, x0 = W / 2 - 6 * 25 + 1.5, my = y + h - 62;
+      FOUNDERS.forEach((F, i) => { const im = IMG['m_' + F.id]; if (!im) return; const on = !tengo || tengo.has(F.id); c.globalAlpha = Math.min(1, Math.max(0, INSTR.t * 3 - i * 0.12)) * (on ? 1 : 0.28); c.drawImage(im, x0 + i * 25, my, s, s); c.globalAlpha = 1; });
+      if (tengo) { c.textAlign = 'center'; c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText(`Tus medallas: ${tengo.size} de 12`, W / 2, my - 4); c.textAlign = 'left'; }
+    }
     if (P.keys) {
-      const rows = [['Caminar', 'Flechas o WASD', 'Cruceta'], ['Hablar · aceptar', 'Z, Espacio o Enter', 'A'], ['Volver · correr', 'X, Esc o Shift', 'B'], ['Libro de los Fundadores', 'M o Tab', 'LIBRO'], ['Pista de Nemo', 'H', 'Habla con Nemo']];
+      const rows = [['Caminar', 'Flechas o WASD', 'Cruceta'], ['Hablar · aceptar', 'Z, Espacio o Enter', 'A'], ['Volver · correr', 'X o Shift', 'B'], ['Libro de los Fundadores', 'M o Tab', 'LIBRO'], ['Pista de Nemo', 'H', 'Habla con Nemo'], ['Pausa y guardar', 'P o Esc', 'MENÚ']];
       c.font = FONT(9, 1); c.fillStyle = COL.red; c.fillText('ACCIÓN', x + 16, y + 58); c.fillText('TECLADO', x + 140, y + 58); c.fillText('CELULAR', x + 250, y + 58);
-      rows.forEach((r, i) => { const yy = y + 76 + i * 20; c.fillStyle = i % 2 ? 'rgba(122,74,40,0.06)' : 'rgba(122,74,40,0.12)'; c.fillRect(x + 10, yy - 13, w - 20, 19); c.fillStyle = '#3a2414'; c.font = FONT(10.5, 1); c.fillText(r[0], x + 16, yy); c.font = FONT(10.5); c.fillText(r[1], x + 140, yy); c.fillText(r[2], x + 250, yy); });
-      c.font = FONT(9.5); c.fillStyle = '#5a4030'; c.fillText('La partida se guarda sola cada vez que cambias de lugar.', x + 16, y + 186);
+      rows.forEach((r, i) => { const yy = y + 74 + i * 18; c.fillStyle = i % 2 ? 'rgba(122,74,40,0.06)' : 'rgba(122,74,40,0.12)'; c.fillRect(x + 10, yy - 13, w - 20, 19); c.fillStyle = '#3a2414'; c.font = FONT(10.5, 1); c.fillText(r[0], x + 16, yy); c.font = FONT(10.5); c.fillText(r[1], x + 140, yy); c.fillText(r[2], x + 250, yy); });
+      c.font = FONT(9.5); c.fillStyle = '#5a4030'; c.fillText('La partida se guarda sola cada vez que cambias de lugar (verás «Guardado»).', x + 16, y + 180); c.fillText('También puedes guardar cuando quieras en el menú de pausa (P o Esc).', x + 16, y + 192);
     }
     c.font = FONT(11); let yy = y + 62;
     P.text.forEach(line => { const L = wrapRich(c, line, tw); c.globalAlpha = k; drawRichLines(c, L, tx, yy, 14, 9999, '#3a2414'); c.globalAlpha = 1; yy += L.length * 14 + 7; });
@@ -841,7 +866,13 @@ function title3D() {
   }
   const p = G.player; TITLE.walk = (TITLE.walk || 0) - 1 / 60;
   if (TITLE.walk <= 0 && !p.moving) { TITLE.walk = 2.5 + Math.random() * 2; const d = ['left', 'right', 'down'][Math.floor(Math.random() * 3)]; const [dx, dy] = DIRS[d]; if (Math.abs(p.x + dx - 17) <= 2 && Math.abs(p.y + dy - 19) <= 1) startMove(p, d); else p.dir = d; }
-  updateEnt(p, 1 / 60); const f = G.follower; if (f) { f.dir = p.x > f.x ? 'right' : p.x < f.x ? 'left' : 'down'; }
+  updateEnt(p, 1 / 60); const f = G.follower;
+  if (f) {   // Nemo juega alrededor de MG: trota a una casilla vecina cada tanto y después la mira
+    f.wt = (f.wt ?? 1.2) - 1 / 60;
+    if (f.wt <= 0 && !f.moving) { f.wt = 1.0 + Math.random() * 1.6; const op = ['left', 'right', 'up', 'down'].filter(d => { const [dx, dy] = DIRS[d], nx = f.x + dx, ny = f.y + dy; return Math.abs(nx - 18) <= 3 && Math.abs(ny - 19) <= 1 && !(nx === p.x && ny === p.y); }); if (op.length) { f.speed = Math.random() < 0.5 ? 4.5 : 7; startMove(f, op[Math.floor(Math.random() * op.length)]); } }
+    if (!f.moving) f.dir = p.x > f.x ? 'right' : p.x < f.x ? 'left' : 'down';
+    updateEnt(f, 1 / 60);
+  }
   m3dDraw(); return true;
 }
 SCENES.title = {
@@ -910,6 +941,49 @@ SCENES.credits = {
     const y0 = H - CRED.t * 22; c.textAlign = 'center';
     CREDITS.forEach((l, i) => { const y = y0 + i * 18; if (y < -20 || y > H + 20) return; if (l.img) { if (IMG[l.img]) c.drawImage(IMG[l.img], W / 2 - 50, y - 10, 100, 100); return; } c.font = FONT(l.s || 12, l.b); c.fillStyle = l.c || '#fff4d8'; c.fillText(l.t || '', W / 2, y); });
     if (y0 + CREDITS.length * 18 < H / 2) { c.font = FONT(10); c.fillStyle = '#ffe680'; c.fillText('Presiona A', W / 2, H - 14); }
+    c.textAlign = 'left';
+  }
+};
+
+// --------------------------------------------------------------- MENÚ DE PAUSA (P, Esc o botón MENÚ)
+// Guardar a mano estaba escondido en Libro → Opciones: aquí queda a la vista.
+const PAUSA = { sel: 0, t: 0, msgT: 0 };
+const PAUSA_OPC = ['Continuar', 'Guardar partida', 'Abrir el Libro', 'Opciones', 'Volver a la portada'];
+function openPause() { if (G.busy || UI.modal()) return; AUD.sfx('page'); PAUSA.sel = 0; PAUSA.t = 0; PAUSA.msgT = 0; PAUSA.save = loadSave(); G.scene = 'pausa'; }
+function cerrarPausa() { G.scene = 'world'; }
+SCENES.pausa = {
+  update(dt) {
+    PAUSA.t += dt; PAUSA.msgT -= dt; const n = PAUSA_OPC.length;
+    if (INP.pressed.up) { PAUSA.sel = (PAUSA.sel + n - 1) % n; AUD.sfx('move'); }
+    if (INP.pressed.down) { PAUSA.sel = (PAUSA.sel + 1) % n; AUD.sfx('move'); }
+    if (PAUSA.t > 0.2 && (INP.pressed.b || INP.pressed.pause)) { AUD.sfx('back'); cerrarPausa(); return; }
+    if (!INP.pressed.a) return;
+    AUD.sfx('select');
+    switch (PAUSA.sel) {
+      case 0: cerrarPausa(); break;
+      case 1: G.scene = 'world'; saveGame(); G.scene = 'pausa'; PAUSA.save = loadSave(); PAUSA.msgT = 2.2; break;
+      case 2: cerrarPausa(); openBook(); break;
+      case 3: cerrarPausa(); openBook(); if (G.scene === 'book') { BOOK.tab = 4; BOOK.focus = 'content'; BOOK.osel = 1; } break;
+      case 4: G.scene = 'world'; saveGame(); G.scene = 'title'; TITLE.sel = 0; AUD.play('titulo'); break;
+    }
+  },
+  drawLow(c) { if (G.map) drawWorld(); },
+  drawHi(c) {
+    c.fillStyle = 'rgba(10,8,20,0.55)'; c.fillRect(0, 0, W, H);
+    const w = 190, h = 44 + PAUSA_OPC.length * 20 + 30, x = (W - w) / 2, y = (H - h) / 2;
+    box(c, x, y, w, h, 'parch');
+    c.textAlign = 'center'; c.fillStyle = COL.red; c.font = FONT(15, 1); c.fillText('Pausa', W / 2, y + 24);
+    PAUSA_OPC.forEach((s, i) => {
+      const yy = y + 50 + i * 20, on = i === PAUSA.sel;
+      if (on) { c.fillStyle = 'rgba(200,50,58,0.12)'; rrect(c, x + 12, yy - 13, w - 24, 18, 5); c.fill(); }
+      c.fillStyle = on ? COL.red : '#3a2414'; c.font = FONT(12, on); c.fillText(s, W / 2, yy);
+      if (on) { const ay = yy - 9 + Math.sin(G.t * 8) * 0.8; c.beginPath(); c.moveTo(x + 22, ay); c.lineTo(x + 28, ay + 4); c.lineTo(x + 22, ay + 8); c.fill(); }
+    });
+    c.font = FONT(9); c.fillStyle = '#7a5a3a';
+    const sv = PAUSA.save; let info = 'Aún no hay partida guardada';
+    if (sv && sv.savedAt) { const m = Math.round((Date.now() - sv.savedAt) / 60000); info = 'Guardada ' + (m < 1 ? 'recién' : m === 1 ? 'hace 1 minuto' : `hace ${m} minutos`) + ` · ${(sv.medals || []).length}/12 medallas`; }
+    c.fillText(info, W / 2, y + h - 12);
+    if (PAUSA.msgT > 0) { c.font = FONT(11, 1); c.fillStyle = '#2a7a3a'; c.fillText('¡Partida guardada!', W / 2, y + h + 14); }
     c.textAlign = 'left';
   }
 };

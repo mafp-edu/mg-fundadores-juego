@@ -1,14 +1,19 @@
 // =====================================================================
 //  ANIMALES 3D (Nemo, caballos, el jinete y las mulas) y OBJETOS PARA RECOGER
-//  Meshy rigea solo personajes de dos piernas: los animales son modelos sin esqueleto y las patas se mueven
-//  con un sombreador (trote en diagonal: delantera izquierda con trasera derecha), más el cuerpo que sube y baja.
+//  Meshy rigea solo personajes de dos piernas: los animales llegan sin esqueleto. Al cargar se les arma uno en
+//  código (m3dAnimalRig): cada vértice recibe pesos de pata (con rodilla), cola y cabeza según su posición, y el
+//  sombreador gira esas partes alrededor de sus articulaciones: trote en diagonal, cola que se mueve, cabeza que
+//  cabecea y jadeo en reposo. Si algo falla queda el balanceo simple de antes.
 // =====================================================================
 'use strict';
 const ANIMAL3D = {
-  nemo: { url: 'assets/modelos/nemo.glb', h: 0.85, leg: 0.42, amp: 0.16, yaw: Math.PI / 2 },
-  horse: { url: 'assets/modelos/caballo.glb', h: 1.95, leg: 0.48, amp: 0.13, yaw: Math.PI },
-  jinete: { url: 'assets/modelos/jinete.glb', h: 2.3, leg: 0.36, amp: 0.11, yaw: Math.PI },
-  mula: { url: 'assets/modelos/mula.glb', h: 1.6, leg: 0.42, amp: 0.12, yaw: Math.PI / 2 }
+  // rig: swing = giro de la pata en la cadera (rad), knee = flexión de rodilla, tail = largo de la cola (fracción del
+  // largo del cuerpo), tailY = altura mínima de la cola, neck = dónde empieza la cabeza (desde la punta delantera)
+  // nemo.glb: modelo de pie (20-nov-2026, desde tres vistas de pie); el sentado quedó en herramientas/originales_3d
+  nemo: { url: 'assets/modelos/nemo.glb', h: 0.78, leg: 0.3, amp: 0.16, yaw: Math.PI / 2, rig: { swing: 0.55, knee: 0.9, tail: 0.12, tailY: 0.55, neck: 0.3, wag: 1 } },
+  horse: { url: 'assets/modelos/caballo.glb', h: 1.95, leg: 0.48, amp: 0.13, yaw: Math.PI, rig: { swing: 0.42, knee: 0.8, tail: 0.14, tailY: 0.45, neck: 0.3, wag: 0.25 } },
+  jinete: { url: 'assets/modelos/jinete.glb', h: 2.3, leg: 0.36, amp: 0.11, yaw: Math.PI, rig: { swing: 0.42, knee: 0.8, tail: 0.14, tailY: 0.3, neck: 0.3, wag: 0.25 } },
+  mula: { url: 'assets/modelos/mula.glb', h: 1.6, leg: 0.42, amp: 0.12, yaw: Math.PI / 2, rig: { swing: 0.42, knee: 0.8, tail: 0.12, tailY: 0.45, neck: 0.3, wag: 0.3 } }
 };
 const ANIMAL_OF = e => e.horse ? (e.horse === 'jinete' ? 'jinete' : 'horse') : (e.sprite === 'nemo' ? 'nemo' : null);
 const ANI = { gltf: {}, loading: {}, failed: {} };
@@ -19,10 +24,67 @@ function m3dAnimalLoad(k) {
   new THREE.GLTFLoader().load(ANIMAL3D[k].url, g => {
     const sc = g.scene; sc.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(sc), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
     ANI.gltf[k] = { scene: sc, box, size, c, alongX: size.x >= size.z };
+    try { ANI.gltf[k].rig = m3dAnimalRig(k, ANI.gltf[k]); } catch (e) { console.warn('rig', k, e); }
     if (k === 'mula') M3D.propSig = null;   // reconstruye los objetos: las mulas pasan a 3D
   }, undefined, err => { console.warn('animal', k, err); ANI.failed[k] = true; });
 }
-// patas: los vértices bajo la rodilla se balancean hacia adelante y atrás según su esquina
+// esqueleto armado en código: pesos por vértice (atributo aRig = pata, índice de pata, cola, cabeza) y articulaciones
+function m3dAnimalRig(k, D) {
+  const cfg = ANIMAL3D[k], R = cfg.rig; if (!R) return null;
+  const F = new THREE.Vector3(Math.cos(cfg.yaw), 0, Math.sin(cfg.yaw)), L = new THREE.Vector3(-Math.sin(cfg.yaw), 0, Math.cos(cfg.yaw));
+  const H = D.size.y, y0 = D.box.min.y, legTop = y0 + H * cfg.leg, kneeY = y0 + H * cfg.leg * 0.5;
+  const meshes = []; D.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+  // los pesos se calculan en el espacio de la geometría: solo vale si la malla no trae transformación propia
+  if (!meshes.length || meshes.some(o => !o.matrixWorld.equals(new THREE.Matrix4()))) return null;
+  let aMin = 1e9, aMax = -1e9; const tmp = new THREE.Vector3();
+  meshes.forEach(o => { const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i++) { tmp.fromBufferAttribute(P, i).sub(D.c); const a = tmp.dot(F); aMin = Math.min(aMin, a); aMax = Math.max(aMax, a); } });
+  const len = aMax - aMin, tailA = aMin + len * R.tail, neckA = aMax - len * R.neck, tailMinY = y0 + H * R.tailY;
+  const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  let fs = 0, fn = 0, bs = 0, bn = 0, ty = 0, tn = 0;
+  meshes.forEach(o => {
+    const P = o.geometry.attributes.position, rig = new Float32Array(P.count * 4);
+    for (let i = 0; i < P.count; i++) {
+      tmp.fromBufferAttribute(P, i); const y = tmp.y; tmp.sub(D.c); const a = tmp.dot(F), sd = tmp.dot(L);
+      const lw = ss(legTop + 0.05 * H, legTop - 0.05 * H, y), front = a > 0, idx = (front ? 0 : 2) + (sd > 0 ? 0 : 1);
+      const tw = y > tailMinY ? ss(tailA, tailA - 0.07 * len, a) : 0;
+      const hw = ss(neckA, neckA + 0.1 * len, a) * ss(legTop, legTop + 0.15 * H, y);
+      rig[i * 4] = lw * (1 - hw); rig[i * 4 + 1] = idx; rig[i * 4 + 2] = tw * (1 - lw); rig[i * 4 + 3] = hw;
+      if (y < kneeY) { if (front) { fs += a; fn++; } else { bs += a; bn++; } }
+      if (tw > 0.05 && tw < 0.6) { ty += y; tn++; }
+    }
+    o.geometry.setAttribute('aRig', new THREE.BufferAttribute(rig, 4));
+  });
+  return { F, L, legTop, kneeY, band: 0.035 * H, hipF: fn ? fs / fn : len * 0.3, hipB: bn ? bs / bn : -len * 0.3,
+    tailA, tailY: tn ? ty / tn : legTop + 0.3 * H, neckA, neckY: y0 + H * 0.62, H };
+}
+function m3dRigShader(mat, U, extra) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
+uniform vec3 uF, uL, uC; uniform vec4 uHip, uAng, uKnee, uTail, uNeck; uniform float uBand;
+attribute vec4 aRig;
+vec2 rot2(vec2 p, vec2 o, float a) { p -= o; float c = cos(a), s = sin(a); return o + vec2(c * p.x - s * p.y, s * p.x + c * p.y); }`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+  { vec3 r = transformed - uC; float al = dot(r, uF), sd = dot(r, uL), yy = transformed.y;
+    float li = aRig.y;
+    float ang = li < 0.5 ? uAng.x : li < 1.5 ? uAng.y : li < 2.5 ? uAng.z : uAng.w;
+    float kn = li < 0.5 ? uKnee.x : li < 1.5 ? uKnee.y : li < 2.5 ? uKnee.z : uKnee.w;
+    float hipA = li < 1.5 ? uHip.x : uHip.y;
+    if (aRig.x > 0.001) {
+      vec2 p = vec2(al, yy);
+      float kw = smoothstep(uHip.w + uBand, uHip.w - uBand, yy);
+      p = mix(p, rot2(p, vec2(hipA, uHip.w), -kn), kw);
+      p = mix(p, rot2(p, vec2(hipA, uHip.z), ang), aRig.x);
+      al = p.x; yy = p.y; }
+    if (aRig.z > 0.001) { vec2 q = rot2(vec2(al, sd), vec2(uTail.x, 0.0), uTail.z * aRig.z); al = q.x; sd = q.y;
+      vec2 q2 = rot2(vec2(al, yy), vec2(uTail.x, uTail.y), uTail.w * aRig.z); al = q2.x; yy = q2.y; }
+    if (aRig.w > 0.001) { vec2 q = rot2(vec2(al, yy), vec2(uNeck.x, uNeck.y), uNeck.z * aRig.w); al = q.x; yy = q.y;
+      vec2 q2 = rot2(vec2(al, sd), vec2(uNeck.x, 0.0), uNeck.w * aRig.w); al = q2.x; sd = q2.y; }
+    transformed = vec3(uC.x, 0.0, uC.z) + uF * al + uL * sd; transformed.y = yy; }` + (extra || ''));
+  };
+  mat.customProgramCacheKey = () => 'rig' + (extra ? 'o' : '');
+}
+// patas (respaldo, sin esqueleto): los vértices bajo la rodilla se balancean hacia adelante y atrás según su esquina
 function m3dLegShader(mat, U, D, extra) {
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
@@ -40,15 +102,20 @@ function m3dAnimalMake(k, tint) {
   const D = ANI.gltf[k], cfg = ANIMAL3D[k];
   const root = D.scene.clone(true); const s = cfg.h / D.size.y; root.scale.setScalar(s);
   root.position.set(-D.c.x * s, -D.box.min.y * s, -D.c.z * s);
-  const U = { uPhase: { value: 0 }, uAmp: { value: 0 }, uLeg: { value: D.size.y * cfg.leg }, uY0: { value: D.box.min.y }, uC: { value: D.c.clone() }, uAx: { value: D.alongX ? 1 : 0 } };
+  const RG = D.rig;
+  const U = RG ? { uF: { value: RG.F }, uL: { value: RG.L }, uC: { value: D.c.clone() }, uBand: { value: RG.band },
+    uHip: { value: new THREE.Vector4(RG.hipF, RG.hipB, RG.legTop + 0.04 * RG.H, RG.kneeY) }, uAng: { value: new THREE.Vector4() }, uKnee: { value: new THREE.Vector4() },
+    uTail: { value: new THREE.Vector4(RG.tailA, RG.tailY, 0, 0) }, uNeck: { value: new THREE.Vector4(RG.neckA, RG.neckY, 0, 0) } }
+    : { uPhase: { value: 0 }, uAmp: { value: 0 }, uLeg: { value: D.size.y * cfg.leg }, uY0: { value: D.box.min.y }, uC: { value: D.c.clone() }, uAx: { value: D.alongX ? 1 : 0 } };
+  const shader = (m, ex) => RG ? m3dRigShader(m, U, ex) : m3dLegShader(m, U, D, ex);
   const extra = [];
   root.traverse(o => {
     if (!o.isMesh) return;
     const map = o.material && o.material.map;
     o.material = new THREE.MeshToonMaterial({ map, gradientMap: m3dToonRamp(), color: tint || 0xffffff }); o.material.toneMapped = false; m3dCharStencil(o.material);
-    m3dLegShader(o.material, U); o.castShadow = true; o.frustumCulled = false;
+    shader(o.material); o.castShadow = true; o.frustumCulled = false;
     const om = new THREE.MeshBasicMaterial({ color: 0x2a1a28, side: THREE.BackSide }); m3dCharStencil(om);
-    m3dLegShader(om, U, '\n  transformed += normalize(objectNormal) * ' + (0.02 / s).toFixed(4) + ';');
+    shader(om, '\n  transformed += normalize(normal) * ' + (0.02 / s).toFixed(4) + ';');
     const ol = new THREE.Mesh(o.geometry, om); ol.position.copy(o.position); ol.quaternion.copy(o.quaternion); ol.scale.copy(o.scale); ol.frustumCulled = false; extra.push([o.parent, ol]);
   });
   extra.forEach(([p, m]) => p.add(m));
@@ -76,9 +143,24 @@ function m3dAnimalSync(e, dt) {
   const want = m3dAnimalYaw(o.A.D, e.dir, k); let da = want - o.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); o.ang += da * (1 - Math.pow(0.0005, dt)); o.A.pivot.rotation.y = o.ang;
   o.amp += ((moving ? 1 : 0) - o.amp) * (1 - Math.pow(0.002, dt));
   o.ph += dt * (moving ? Math.min(14, 4 + v * 1.4) : 2);
-  o.A.U.uPhase.value = o.ph; o.A.U.uAmp.value = o.amp * ANIMAL3D[k].amp * o.A.D.size.y;
-  o.A.pivot.position.y = moving ? Math.abs(Math.sin(o.ph)) * 0.05 * ANIMAL3D[k].h : Math.sin(G.t * 2 + e.x) * 0.01;
-  if (k === 'nemo' && !moving) o.A.pivot.rotation.z = Math.sin(G.t * 9) * 0.03;   // mueve la cola… más o menos
+  const U = o.A.U, cfg = ANIMAL3D[k];
+  if (o.A.D.rig) {
+    // trote en diagonal: delantera izquierda con trasera derecha; la rodilla se dobla cuando la pata va hacia adelante
+    const R = cfg.rig, A = o.amp * R.swing, K = o.amp * R.knee, ph = o.ph, leg = d => Math.sin(ph + d), kn = d => Math.max(0, Math.cos(ph + d));
+    U.uAng.value.set(A * leg(0), A * leg(Math.PI), A * leg(Math.PI), A * leg(0));
+    U.uKnee.value.set(K * kn(0), K * kn(Math.PI), K * kn(Math.PI), K * kn(0));
+    const feliz = k === 'nemo' ? 1 : 0.4, wagV = moving ? 10 : 13 * feliz + 3;
+    U.uTail.value.z = Math.sin(G.t * wagV + e.x) * 0.55 * R.wag * (moving ? 0.6 : 1); U.uTail.value.w = 0.15 * R.wag * (k === 'nemo' ? 1 : 0);
+    // cabeza: cabecea al trotar; quieto, jadea (Nemo) o mira alrededor
+    U.uNeck.value.z = moving ? Math.sin(ph * 2) * 0.07 : Math.sin(G.t * (k === 'nemo' ? 8 : 1.3) + e.x) * (k === 'nemo' ? 0.025 : 0.05);
+    U.uNeck.value.w = moving ? 0 : Math.sin(G.t * 0.7 + e.y) * 0.25 * (1 - o.amp);
+    o.A.pivot.position.y = moving ? Math.abs(Math.sin(o.ph)) * 0.035 * cfg.h : 0;
+    o.A.pivot.rotation.z = 0;
+  } else {
+    U.uPhase.value = o.ph; U.uAmp.value = o.amp * cfg.amp * o.A.D.size.y;
+    o.A.pivot.position.y = moving ? Math.abs(Math.sin(o.ph)) * 0.05 * cfg.h : Math.sin(G.t * 2 + e.x) * 0.01;
+    if (k === 'nemo' && !moving) o.A.pivot.rotation.z = Math.sin(G.t * 9) * 0.03;
+  }
   return true;
 }
 

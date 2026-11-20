@@ -164,9 +164,8 @@ const ACCIDENTE = async () => {
   await say('mg', '¿Qué pasa, papá? ¿Dónde está Nemo?');
   await say('papa', '¡Nemo viajó al *Santiago de 1810*! ¡Está cerca de la casa de don *Mateo de Toro y Zambrano*!');
   await say('mg', '¿Don Mateo? ¿Quién es ese? Lo he escuchado antes… ¡Esperen! ¡El libro del tío!');
-  await showImage('pagina_mateo');
-  await say('mg', '«Este pequeño y elegante fundador una simpática peluca ocupó. Siempre preocupado de la gente, instruyó una reunión urgente.»');
-  await say('mg', '¿Y por qué Nemo aparece en esta página?');
+  await say('mg', 'Aquí está su página: «Este pequeño y elegante fundador una simpática peluca ocupó. Siempre preocupado de la gente, instruyó una reunión urgente.»');
+  await say('mg', '¡Y en la esquina hay una huellita de perro! ¿Nemo pasó por esta página?');
   meet('mateo');
   await say('mg', '¡Tengo que ir por Nemo! Debe estar asustado en un lugar tan extraño y con gente que no conoce.');
   const i = await ask('Pero… nunca he viajado en el tiempo.', ['¿Y si me pierdo?', '¡Voy a encontrarlo!']);
@@ -200,7 +199,7 @@ const STGO1810_ENTER = async () => {
     await say('vendedora', '¡Dulces! ¡Dulces frescos!');
     await say('mg', 'Mmm… ¡no! *Primero Nemo, después dulces.*');
     setObjective('Buscar a don Mateo frente al Real Consulado (al norte de la plaza).');
-    await sleep(400); toast('Consejo: mantén B (o Shift) para correr. La flecha dorada te guía.', 5);
+    await sleep(400); toast('Consejo: mantén B (o Shift) para correr. La flecha dorada te guía. Pausa y guardar: P o Esc.', 0, { fijo: true });
   }
 };
 const MATEO_PLAZA = async () => {
@@ -583,7 +582,7 @@ async function interrogatorio(e, opp = 'interrogatorio') {
   await battle(OPPONENTS[opp]);
   const until = G.t + 6;
   G.ents.forEach(x => { if (x.guard) x.guard.cooldown = until; });
-  toast('Los soldados te dejarán tranquila unos segundos. ¡Aprovecha! (Pasa cuando miren hacia otro lado.)', 5);
+  toast('Los soldados te dejarán tranquila unos segundos. ¡Aprovecha! (Pasa cuando miren hacia otro lado.)');
 }
 const GUARDIA_VE = async (e) => {
   await say('realista', '¡Alto ahí! ¿Qué hace una niña sola en la calle, con estos tiempos?');
