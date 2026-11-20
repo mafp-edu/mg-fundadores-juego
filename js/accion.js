@@ -90,11 +90,22 @@ SCENES.ride = {
   drawHi(c) {
     const R = RIDE, o = R.o;
     const draw = (key, x, yFeet, h, flip) => { const im = IMG[key]; if (!im) return; const w = h * im.width / im.height; c.save(); if (flip) { c.translate(x + w / 2, 0); c.scale(-1, 1); c.translate(-(x + w / 2), 0); } c.drawImage(im, x - w / 2, yFeet - h, w, h); c.restore(); };
+    // capa media: árboles (o rocas y pinos en la nieve) en el horizonte, corren más lento que el suelo
+    const capa = (imgs, vel, esp, yFeet, h, alpha, filtro) => { const off = (R.scroll * vel) % esp; c.save(); c.globalAlpha = alpha; if (filtro) c.filter = filtro;
+      for (let x = -off - esp, i = Math.floor((R.scroll * vel) / esp); x < W + esp; x += esp, i++) { const im = IMG[imgs[((i % imgs.length) + imgs.length) % imgs.length]]; if (!im) continue; const w = h * im.width / im.height; c.drawImage(im, x + ((i * 37) % 23), yFeet - h, w, h); } c.restore(); };
+    capa(o.nieve ? ['b_pino', 'b_roca', 'b_pino'] : ['b_alamo', 'b_arbol', 'b_alamo', 'b_arbusto'], 0.55, 62, 130, o.nieve ? 34 : 46, o.noche ? 0.75 : 0.95, o.noche ? 'brightness(0.45) saturate(0.6)' : null);
     const sorted = R.items.slice().sort((a, b) => a.lane - b.lane);
     for (const q of sorted) { const y = RIDE_LANES[q.lane] + 14; if (q.star) { const k = 1 + Math.sin(R.t * 8 + q.x) * 0.15; c.fillStyle = '#ffe060'; star(c, q.x, y - 14, 7 * k); } else draw(q.img, q.x, y, 30); }
-    const bob = Math.abs(Math.sin(R.t * 10)) * 4;
-    if (o.perseguidor) { const px = 10 + (1 - R.dist) * 60; draw(o.perseguidor, px - 40, RIDE_LANES[(R.lane + 1) % 3] + 14 - Math.abs(Math.sin(R.t * 10 + 1)) * 4, 56); }
-    if (!(R.inv > 0 && Math.floor(R.t * 14) % 2)) draw(o.jinete, 100, R.y + 14 - bob, 64);
+    // galope animado: 4 cuadros por animal (b_*_1..4); si no están, se usa la imagen fija con un rebote
+    const cuadro = (key, fase) => { const f = 1 + ((Math.floor(R.t * 11 + fase) % 4) + 4) % 4; return IMG[key + '_' + f] ? key + '_' + f : key; };
+    const anim = k => !!IMG[k + '_1'];
+    const bob = anim(o.jinete) ? Math.abs(Math.sin(R.t * 11 * Math.PI / 2)) * 1.5 : Math.abs(Math.sin(R.t * 10)) * 4;
+    const polvo = (x, y) => { for (let i = 0; i < 5; i++) { const k = (((R.t * 3 + i / 5) % 1) + 1) % 1; c.globalAlpha = (1 - k) * 0.35; c.fillStyle = o.nieve ? '#ffffff' : (o.noche ? '#8a8aa8' : '#c8b088'); c.beginPath(); c.arc(x - k * 46, y - 3 - k * 8, 3 + k * 7, 0, Math.PI * 2); c.fill(); } c.globalAlpha = 1; };
+    if (o.perseguidor) { const px = 10 + (1 - R.dist) * 60, py = RIDE_LANES[(R.lane + 1) % 3] + 14; polvo(px - 52, py); draw(cuadro(o.perseguidor, 2), px - 40, py - (anim(o.perseguidor) ? 0 : Math.abs(Math.sin(R.t * 10 + 1)) * 4), 56); }
+    polvo(80, R.y + 14);
+    if (!(R.inv > 0 && Math.floor(R.t * 14) % 2)) draw(cuadro(o.jinete, 0), 100, R.y + 14 - bob, 64);
+    // primer plano: pasto alto que pasa rápido (da sensación de velocidad)
+    capa(['b_pasto_alto'], 1.6, 90, H + 8, 26, o.noche ? 0.85 : 1, o.noche ? 'brightness(0.4)' : (o.nieve ? 'brightness(1.15) saturate(0.3)' : null));
     // marcador
     box(c, 8, 8, 132, 30); c.fillStyle = COL.ink; c.font = FONT(10, 1); c.fillText(o.titulo, 16, 21);
     c.fillStyle = '#c89a20'; star(c, 20, 31, 4); c.fillStyle = COL.ink; c.font = FONT(9, 1); c.fillText('× ' + R.stars, 28, 34);

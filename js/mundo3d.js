@@ -325,7 +325,7 @@ function m3dEntInfo(e) {
   return m3dCharTex(e);
 }
 function m3dSyncEnts() {
-  const list = G.ents.filter(e => !e.hidden).concat(G.follower ? [G.follower] : []).concat(G.player && !G.player.hidden ? [G.player] : []);
+  const list = G.ents.filter(e => !e.hidden).concat(G.follower && !G.follower.hidden ? [G.follower] : []).concat(G.player && !G.player.hidden ? [G.player] : []);
   const alive = new Set(); const now = performance.now(), sdt = Math.min(0.1, ((now - (M3D.syncT || now)) / 1000) || 1 / 60); M3D.syncT = now;
   for (const e of list) {
     alive.add(e);
